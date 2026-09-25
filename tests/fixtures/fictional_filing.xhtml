@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"
+      xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+      xmlns:ifrs-full="https://xbrl.ifrs.org/taxonomy/2024-03-27/ifrs-full"
+      xmlns:nwd="http://example.com/nwd" xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+<head><title>Fictional Test Holdings plc - test fixture</title></head>
+<body>
+<div style="display:none"><ix:header><ix:resources>
+  <xbrli:context id="c-1"><xbrli:entity><xbrli:identifier scheme="x">T1</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:startDate>2025-01-01</xbrli:startDate><xbrli:endDate>2025-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+  <xbrli:context id="c-2"><xbrli:entity><xbrli:identifier scheme="x">T1</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:startDate>2024-01-01</xbrli:startDate><xbrli:endDate>2024-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+  <xbrli:context id="c-3"><xbrli:entity><xbrli:identifier scheme="x">T1</xbrli:identifier>
+    <xbrli:segment><xbrldi:explicitMember dimension="nwd:IncomeStatementAxis">nwd:UnderlyingMember</xbrldi:explicitMember></xbrli:segment></xbrli:entity>
+    <xbrli:period><xbrli:startDate>2025-01-01</xbrli:startDate><xbrli:endDate>2025-12-31</xbrli:endDate></xbrli:period></xbrli:context>
+  <xbrli:context id="c-4"><xbrli:entity><xbrli:identifier scheme="x">T1</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:instant>2025-12-31</xbrli:instant></xbrli:period></xbrli:context>
+</ix:resources></ix:header></div>
+<p>Company: <ix:nonNumeric name="ifrs-full:NameOfReportingEntityOrOtherMeansOfIdentification" contextRef="c-1">Fictional Test Holdings plc</ix:nonNumeric></p>
+<p>Revenue <ix:nonFraction name="ifrs-full:Revenue" contextRef="c-1" unitRef="GBP" scale="6" decimals="-6">4,812</ix:nonFraction>
+ (2024: <ix:nonFraction name="ifrs-full:Revenue" contextRef="c-2" unitRef="GBP" scale="6" decimals="-6">4,530</ix:nonFraction>)</p>
+<p>Underlying revenue <ix:nonFraction name="ifrs-full:Revenue" contextRef="c-3" unitRef="GBP" scale="6" decimals="-6">4,790</ix:nonFraction></p>
+<p>Profit before tax <ix:nonFraction name="ifrs-full:ProfitLossBeforeTax" contextRef="c-1" unitRef="GBP" scale="6" decimals="-6">612</ix:nonFraction>
+ (2024: <ix:nonFraction name="ifrs-full:ProfitLossBeforeTax" contextRef="c-2" unitRef="GBP" scale="6" decimals="-6">548</ix:nonFraction>)</p>
+<p>Profit for the year <ix:nonFraction name="ifrs-full:ProfitLoss" contextRef="c-1" unitRef="GBP" scale="6" decimals="-6">471</ix:nonFraction></p>
+<p>Basic EPS <ix:nonFraction name="ifrs-full:BasicEarningsLossPerShare" contextRef="c-1" unitRef="GBP" scale="-2" decimals="1">23.6</ix:nonFraction>p</p>
+<p>Cash <ix:nonFraction name="ifrs-full:CashAndCashEquivalents" contextRef="c-4" unitRef="GBP" scale="6" decimals="-6">905</ix:nonFraction></p>
+<p>Average employees <ix:nonFraction name="ifrs-full:AverageNumberOfEmployees" contextRef="c-1" unitRef="pure" scale="-2" decimals="0">3,214</ix:nonFraction></p>
+<p>Service fees <ix:nonFraction name="nwd:ServiceFeeIncome" contextRef="c-1" unitRef="GBP" scale="6" decimals="-6">128</ix:nonFraction></p>
+<ix:nonNumeric name="ifrs-full:DescriptionOfAccountingPolicyForRecognitionOfRevenue" contextRef="c-1">
+Revenue is measured at the fair value of consideration received for goods supplied. Revenue from the sale of components is recognised when control passes to the customer, which is on delivery to the customer's site. Service fee income is recognised over the term of the maintenance contract on a straight-line basis.
+</ix:nonNumeric>
+</body></html>

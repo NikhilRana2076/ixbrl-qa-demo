@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iXBRL Grounded Q&amp;A — Nikhil Rana</title>
+  <meta name="description" content="Ask questions of UK iXBRL annual reports and get answers traced to the filing's own tagged facts. MSc AI research demo, University of West London.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1b2d'/%3E%3Cpath d='M9 22V10h3v12zm5 0V14h3v8zm5 0v-5h3v5z' fill='%23d8c9a3'/%3E%3C/svg%3E">
+</head>
+<body data-contact-email="{{ contact_email }}" data-contact-linkedin="{{ contact_linkedin }}" data-max-mb="{{ max_upload_mb }}">
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="#top" aria-label="Home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>iXBRL Grounded Q&amp;A</span>
+    </a>
+    <nav class="nav">
+      <a href="#demo">Demo</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">MSc Artificial Intelligence research · University of West London</p>
+      <h1>Ask a UK annual report a question.<br>Get the tagged figure, not a guess.</h1>
+      <p class="lede">Upload a Companies House iXBRL filing and ask about it in plain English. Each answer comes from the filing's own tagged XBRL facts. It shows its source concept, period and dimension, and whether the server could confirm it against the filing.</p>
+      <dl class="hero-stats">
+        <div><dt>Correct answers</dt><dd>44% <span>→</span> 92%</dd><p>Naive reading vs tag-aware retrieval, 102-question benchmark</p></div>
+        <div><dt>Unanswered</dt><dd>52% <span>→</span> 3%</dd><p>Retrieval gives the model the evidence that naive reading loses to truncation</p></div>
+        <div><dt>Wrong when answering</dt><dd>5.1% <span class="vs">vs</span> 18.2%</dd><p>Claude vs GPT-5.6 Terra, with identical retrieved evidence</p></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="demo" class="demo wrap" aria-label="Interactive demo">
+    <!-- Filing panel -->
+    <aside class="panel filing-panel">
+      <div class="panel-head">
+        <h2>1 · Filing</h2>
+        <button id="clearBtn" class="link-btn" hidden>Clear filing</button>
+      </div>
+
+      <div id="loader">
+        <label id="drop" class="drop" tabindex="0">
+          <input id="fileInput" type="file" accept=".xhtml,.html,.htm,.xml,.zip" hidden>
+          <span class="drop-icon" aria-hidden="true"></span>
+          <strong>Upload an iXBRL filing</strong>
+          <span class="muted">.xhtml, .html or report-package .zip, up to {{ max_upload_mb }} MB</span>
+          <span class="muted small">Download one free from Companies House: company page → Filing history → Accounts</span>
+        </label>
+        <div id="samples" class="samples" hidden>
+          <p class="muted small">Or try a sample filing:</p>
+          <div id="sampleList" class="chips"></div>
+        </div>
+        <div id="uploadProgress" class="progress" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <div><strong id="progressTitle">Parsing filing…</strong><p class="muted small" id="progressDetail">Extracting tagged facts, contexts and dimensions.</p></div>
+        </div>
+        <p id="uploadError" class="form-error" role="alert" hidden></p>
+      </div>
+
+      <div id="overview" hidden>
+        <p class="entity" id="ovEntity"></p>
+        <p class="muted small" id="ovFile"></p>
+        <dl class="kv">
+          <div><dt>Framework</dt><dd id="ovFramework"></dd></div>
+          <div><dt>Latest period</dt><dd id="ovPeriod"></dd></div>
+          <div><dt>Numeric facts</dt><dd id="ovFacts"></dd></div>
+          <div><dt>Narrative blocks</dt><dd id="ovNarr"></dd></div>
+          <div><dt>Dimensional</dt><dd id="ovDim"></dd></div>
+          <div><dt>Extension facts</dt><dd id="ovExt"></dd></div>
+        </dl>
+        <h3 class="subhead">Headline figures</h3>
+        <ul id="ovMetrics" class="metrics"></ul>
+        <div id="ovWarnings"></div>
+        <p class="muted small privacy-inline">Your file was deleted once it was parsed. The extracted facts are removed when you clear the filing or after 30 minutes of inactivity.</p>
+      </div>
+    </aside>
+
+    <!-- Ask panel -->
+    <section class="panel ask-panel">
+      <div class="panel-head">
+        <h2>2 · Ask</h2>
+        <div id="quota" class="quota" aria-live="polite"></div>
+      </div>
+
+      <div class="model-switch" role="radiogroup" aria-label="Model">
+        <button class="model-opt" role="radio" aria-checked="true" data-model="public">
+          <span class="model-name">GPT-5.6 Terra</span>
+          <span class="model-sub">Public · <span id="publicLeft">10 free questions</span></span>
+        </button>
+        <button class="model-opt" role="radio" aria-checked="false" data-model="locked">
+          <span class="model-name"><span class="lock" aria-hidden="true"></span>Claude Sonnet 4.6</span>
+          <span class="model-sub" id="lockedSub">Access code required</span>
+        </button>
+      </div>
+
+      <form id="askForm" class="ask-form" autocomplete="off">
+        <label for="question" class="sr-only">Question</label>
+        <textarea id="question" rows="2" maxlength="400" placeholder="Load a filing, then ask e.g. “What was revenue for the year?”" disabled></textarea>
+        <button id="askBtn" class="btn primary" type="submit" disabled>Ask</button>
+      </form>
+      <div id="suggestions" class="chips suggestions"></div>
+      <p id="askError" class="form-error" role="alert" hidden></p>
+
+      <div id="feed" class="feed" aria-live="polite">
+        <div class="empty">
+          <p class="empty-title">Answers appear here as evidence cards.</p>
+          <ul class="legend">
+            <li><span class="badge verified">Matched to tagged fact</span> value read directly from the filing</li>
+            <li><span class="badge computed">Computed from tagged facts</span> arithmetic done by the server</li>
+            <li><span class="badge quoted">Quote found in filing</span> narrative answer backed by the tagged text</li>
+            <li><span class="badge unverified">Not verified</span> the server could not confirm it</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section id="method" class="band">
+    <div class="wrap">
+      <h2 class="section-title">How it works</h2>
+      <ol class="steps">
+        <li><h3>Parse</h3><p>The iXBRL document is parsed directly with lxml. Scale, sign, nil values, continuation chains and <code>ix:exclude</code> are resolved, and no taxonomy download is needed.</p></li>
+        <li><h3>Store</h3><p>Every fact is stored with its concept, value, unit, period and dimensional qualifiers. The multiple values a filing tags for one concept are all kept.</p></li>
+        <li><h3>Retrieve</h3><p>Tag-aware retrieval selects the facts whose concepts match the question. The model reads structured evidence instead of a truncated slice of a 300,000-token report.</p></li>
+        <li><h3>Verify</h3><p>The model must cite evidence IDs. The server reads the value from the cited fact, does any arithmetic itself, and checks narrative quotes against the tagged text.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="results" class="wrap results">
+    <h2 class="section-title">Research findings</h2>
+    <div class="results-grid">
+      <table class="table">
+        <caption>102-question benchmark · 12 UK filings (8 FTSE 350 IFRS, 4 FRS 102)</caption>
+        <thead><tr><th>Condition</th><th>Correct</th><th>Incorrect</th><th>Abstained</th></tr></thead>
+        <tbody>
+          <tr><td>Claude · C1 naive (8k-token text)</td><td>44.1%</td><td>4</td><td>53</td></tr>
+          <tr><td>Claude · C3 tag-aware retrieval</td><td class="strong">92.2%</td><td>5</td><td>3</td></tr>
+          <tr><td>GPT-5.6 Terra · C1 naive</td><td>41.2%</td><td>5</td><td>55</td></tr>
+          <tr><td>GPT-5.6 Terra · C3 retrieval</td><td>79.4%</td><td>18</td><td>3</td></tr>
+        </tbody>
+      </table>
+      <div class="findings">
+        <p><strong>Retrieval fixes coverage.</strong> Both models stopped abstaining once they were given the relevant tagged facts. Claude's C1→C3 gain was +48.0 pp (95% CI 38.2–57.8).</p>
+        <p><strong>Reliability depends on the model.</strong> With byte-identical evidence, GPT-5.6 Terra was wrong on 18.2% of the questions it attempted, against 5.1% for Claude.</p>
+        <p><strong>Self-consistency did not detect errors.</strong> Sampling-based detection caught 0 of the incorrect answers for either model. The errors were systematic, so they did not vary between samples.</p>
+        <p class="muted small">Limitations: a small corpus, three consistency samples, and results that do not transfer automatically to other filings. This demo uses a structured-output variant of the C3 prompt with server-side verification, so it is not the exact benchmarked condition.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="band dark">
+    <div class="wrap contact">
+      <div>
+        <h2 class="section-title">Want more questions, or Claude access?</h2>
+        <p>The public model is free for {{ public_limit }} questions per session. For more questions or a Claude access code, send me a message with a line about what you'd like to test.</p>
+      </div>
+      <div class="contact-actions">
+        {% if contact_linkedin %}<a class="btn light" href="{{ contact_linkedin }}" target="_blank" rel="noopener noreferrer">Message on LinkedIn</a>{% endif %}
+        {% if contact_email %}<a class="btn ghost-light" href="mailto:{{ contact_email }}?subject=iXBRL%20demo%20access">Email me</a>{% endif %}
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-inner">
+    <p><strong>Nikhil Rana</strong> · MSc Artificial Intelligence, University of West London · Supervisor: Dr Ali Gheitasy</p>
+    <p class="muted small">Privacy: uploaded files are deleted as soon as they are parsed, and the extracted facts are deleted within 30 minutes. Questions and the retrieved evidence are sent to OpenAI (public model) or Anthropic (Claude) to generate answers, and OpenAI may use data from the public model to improve its models. Don't upload anything confidential. Filings on the public register are Crown copyright under the Open Government Licence v3.0. This is a research demonstration and not financial advice. Always check figures against the filing.</p>
+  </div>
+</footer>
+
+<!-- Access-code dialog -->
+<dialog id="unlockDialog" class="dialog">
+  <form method="dialog" id="unlockForm">
+    <h2>Unlock Claude Sonnet 4.6</h2>
+    <p class="muted">Claude had the lowest error rate in the study, so access is by code. Enter the code you were sent.</p>
+    <label for="codeInput" class="field-label">Access code</label>
+    <input id="codeInput" class="input" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX" maxlength="64">
+    <p id="codeError" class="form-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="codeSubmit">Unlock</button>
+    </div>
+    <p class="muted small">No code? <a class="request-link" href="#contact" data-close>Request access</a></p>
+  </form>
+</dialog>
+
+<!-- Quota wall -->
+<dialog id="quotaDialog" class="dialog">
+  <div>
+    <h2 id="quotaTitle">You've used your free questions</h2>
+    <p class="muted" id="quotaText">Thanks for trying the demo. For more questions or a Claude access code, message me and I'll send one.</p>
+    <div class="dialog-actions stack">
+      {% if contact_linkedin %}<a class="btn primary" href="{{ contact_linkedin }}" target="_blank" rel="noopener noreferrer">Message on LinkedIn</a>{% endif %}
+      {% if contact_email %}<a class="btn ghost" href="mailto:{{ contact_email }}?subject=iXBRL%20demo%20access">Email {{ contact_email }}</a>{% endif %}
+      <button type="button" class="btn ghost" id="haveCode">I have an access code</button>
+      <button type="button" class="link-btn" data-close>Close</button>
+    </div>
+  </div>
+</dialog>
+
+<template id="cardTpl">
+  <article class="card">
+    <header class="card-head">
+      <p class="card-q"></p>
+      <p class="card-meta"></p>
+    </header>
+    <div class="card-body"></div>
+  </article>
+</template>
+
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>

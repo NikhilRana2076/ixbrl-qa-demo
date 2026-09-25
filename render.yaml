@@ -1,0 +1,40 @@
+# Render Blueprint: New + > Blueprint > connect this repo.
+services:
+  - type: web
+    name: ixbrl-grounded-qa
+    runtime: python
+    plan: free
+    region: frankfurt            # closest free region to London
+    buildCommand: pip install -r requirements-web.txt
+    startCommand: gunicorn -c gunicorn.conf.py wsgi:app
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"          # lxml 5.2.2 / pandas 2.2.2 have no wheels for 3.13+
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      # --- secrets: set these in the dashboard, never in this file ---
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ACCESS_CODES
+        sync: false
+      # --- limits ---
+      - key: PUBLIC_QUESTIONS_PER_SESSION
+        value: "10"
+      - key: PUBLIC_QUESTIONS_PER_IP_PER_DAY
+        value: "20"
+      - key: GLOBAL_QUESTIONS_PER_DAY
+        value: "300"
+      - key: GLOBAL_SPEND_USD_PER_DAY
+        value: "2.00"
+      - key: MAX_UPLOAD_MB
+        value: "25"
+      - key: CONTACT_EMAIL
+        value: nikhilrana2076@gmail.com
+      - key: CONTACT_LINKEDIN
+        sync: false
