@@ -206,6 +206,44 @@ details.more summary { cursor: pointer; font-size: 13px; font-weight: 600; color
 .footer { padding: 28px 0 40px; }
 .footer p { margin: 0 0 8px; }
 
+/* ---------- beginner guide, transparency, FAQ ---------- */
+.hero-cta { display: flex; gap: 10px; flex-wrap: wrap; margin: -14px 0 32px; }
+.section { padding: 56px 24px; }
+.section-intro { max-width: 760px; color: var(--ink-2); font-size: 16px; margin: -8px 0 28px; }
+.subsection { font-family: var(--serif); font-size: 21px; font-weight: 600; margin: 40px 0 16px; }
+.guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.guide-grid > *, .use-grid > *, .transparency > * { min-width: 0; }
+.info-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; }
+.info-card h3 { font-family: var(--serif); font-size: 19px; margin: 0 0 10px; }
+.info-card p { margin: 0 0 10px; font-size: 14.5px; color: var(--ink-2); }
+.howto { margin: 0 0 12px; padding-left: 20px; font-size: 14px; color: var(--ink-2); display: grid; gap: 8px; }
+.starter { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.starter li { font-size: 14px; background: var(--paper); border: 1px solid var(--line-2); border-radius: 8px; padding: 7px 10px; }
+.starter li::before { content: "\201C"; color: var(--brass); font-family: var(--serif); margin-right: 2px; }
+.starter li::after { content: "\201D"; color: var(--brass); font-family: var(--serif); margin-left: 1px; }
+.use-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.use-card { background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--brass); border-radius: var(--radius); padding: 16px; }
+.use-card h4 { margin: 0 0 6px; font-size: 14.5px; }
+.use-card p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.glossary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 22px; }
+.glossary > div { padding: 12px 0; border-bottom: 1px solid var(--line-2); min-width: 0; }
+.glossary dt { font-weight: 600; font-size: 14.5px; }
+.glossary dd { margin: 3px 0 0; font-size: 14px; color: var(--ink-2); }
+.transparency { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 28px; }
+.transparency > div { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.transparency h3 { margin: 0 0 12px; font-size: 16px; }
+.transparency .legend { font-size: 13.5px; color: var(--ink-2); }
+.plain { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.faq { max-width: 860px; display: grid; gap: 10px; }
+.faq details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 20px; }
+.faq summary { cursor: pointer; font-weight: 600; font-size: 15.5px; padding: 16px 28px 16px 0; list-style: none; position: relative; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 0; top: 13px; font-size: 20px; color: var(--brass); font-weight: 400; }
+.faq details[open] summary::after { content: "\2212"; }
+.faq summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.faq details p { margin: 0 0 18px; color: var(--ink-2); max-width: 720px; }
+.footer-links a { color: var(--ink); }
+
 /* ---------- dialogs ---------- */
 .dialog { border: 0; border-radius: 14px; padding: 26px; width: min(440px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(15,27,45,.3); color: var(--ink); }
 .dialog::backdrop { background: rgba(15,27,45,.45); }
@@ -221,6 +259,8 @@ details.more summary { cursor: pointer; font-size: 13px; font-weight: 600; color
   .demo { grid-template-columns: 1fr; }
   .filing-panel { position: static; }
   .steps { grid-template-columns: 1fr 1fr; }
+  .guide-grid, .transparency { grid-template-columns: 1fr; }
+  .use-grid { grid-template-columns: 1fr 1fr; }
   .results-grid { grid-template-columns: 1fr; }
   .contact { flex-direction: column; align-items: flex-start; }
 }
@@ -231,6 +271,10 @@ details.more summary { cursor: pointer; font-size: 13px; font-weight: 600; color
   .hero-stats { grid-template-columns: 1fr; }
   .model-switch { grid-template-columns: 1fr; }
   .steps { grid-template-columns: 1fr; }
+  .use-grid, .glossary { grid-template-columns: 1fr; }
+  .section { padding: 40px 16px; }
+  .hero-cta { margin-top: -8px; }
+  .hero-cta .btn { white-space: normal; text-align: center; }
   .value { font-size: 32px; }
   .card-head { flex-direction: column; gap: 2px; }
   .status-detail { text-align: left; }

@@ -1,4 +1,4 @@
-# iXBRL Grounded Q&A: public demo
+# TagTrace: deployment notes
 
 A web layer on top of the dissertation pipeline. `src/` (parser, fact store, C3 retrieval, the logged provider clients) is reused **unchanged**. Everything new is in `webapp/`.
 

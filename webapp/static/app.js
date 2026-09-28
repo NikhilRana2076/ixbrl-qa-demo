@@ -1,4 +1,4 @@
-/* iXBRL Grounded Q&A — front end.
+/* TagTrace — front end.
  * All server/model text is inserted with textContent (never innerHTML), so a
  * filing or model reply containing markup cannot inject script into the page. */
 (() => {

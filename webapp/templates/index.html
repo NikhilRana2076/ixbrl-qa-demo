@@ -3,8 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>iXBRL Grounded Q&amp;A — Nikhil Rana</title>
-  <meta name="description" content="Ask questions of UK iXBRL annual reports and get answers traced to the filing's own tagged facts. MSc AI research demo, University of West London.">
+  <title>TagTrace | AI answers from UK iXBRL annual reports</title>
+  <meta name="description" content="Free tool to ask plain-English questions about UK company accounts from Companies House. Answers come from the filing's own iXBRL tags and are checked before you see them. No accounting knowledge needed.">
+  <link rel="canonical" href="{{ site_url }}/">
+  <meta name="author" content="Nikhil Rana">
+  <meta name="theme-color" content="#0f1b2d">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TagTrace">
+  <meta property="og:title" content="TagTrace: ask a UK annual report a question">
+  <meta property="og:description" content="Upload a Companies House iXBRL filing and ask in plain English. Every answer is traced to a tagged figure and checked before you see it.">
+  <meta property="og:url" content="{{ site_url }}/">
+  <meta property="og:image" content="{{ site_url }}{{ url_for('static', filename='og.png') }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="TagTrace: AI answers from UK annual reports, traced to the filing's own tags">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{{ structured_data }}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
@@ -15,15 +29,16 @@
 
 <header class="topbar">
   <div class="wrap topbar-inner">
-    <a class="brand" href="#top" aria-label="Home">
+    <a class="brand" href="#top" aria-label="TagTrace home">
       <span class="brand-mark" aria-hidden="true"></span>
-      <span>iXBRL Grounded Q&amp;A</span>
+      <span>TagTrace</span>
     </a>
-    <nav class="nav">
+    <nav class="nav" aria-label="Sections">
       <a href="#demo">Demo</a>
-      <a href="#method">Method</a>
-      <a href="#results">Results</a>
-      <a href="#contact">Contact</a>
+      <a href="#guide">Beginner's guide</a>
+      <a href="#method">How it works</a>
+      <a href="#results">Research</a>
+      <a href="#faq">FAQ</a>
     </nav>
   </div>
 </header>
@@ -31,13 +46,17 @@
 <main id="top">
   <section class="hero">
     <div class="wrap">
-      <p class="eyebrow">MSc Artificial Intelligence research · University of West London</p>
+      <p class="eyebrow">AI assistant for UK iXBRL annual reports</p>
       <h1>Ask a UK annual report a question.<br>Get the tagged figure, not a guess.</h1>
-      <p class="lede">Upload a Companies House iXBRL filing and ask about it in plain English. Each answer comes from the filing's own tagged XBRL facts. It shows its source concept, period and dimension, and whether the server could confirm it against the filing.</p>
+      <p class="lede">Upload a company's accounts from Companies House and ask in plain English. TagTrace finds the exact figure the company reported, shows you where it came from, and checks it before you see it. You don't need to know any accounting.</p>
+      <div class="hero-cta">
+        <a class="btn light" href="#demo">Try the demo</a>
+        <a class="btn ghost-light" href="#guide">New to company accounts? Start here</a>
+      </div>
       <dl class="hero-stats">
-        <div><dt>Correct answers</dt><dd>44% <span>→</span> 92%</dd><p>Naive reading vs tag-aware retrieval, 102-question benchmark</p></div>
-        <div><dt>Unanswered</dt><dd>52% <span>→</span> 3%</dd><p>Retrieval gives the model the evidence that naive reading loses to truncation</p></div>
-        <div><dt>Wrong when answering</dt><dd>5.1% <span class="vs">vs</span> 18.2%</dd><p>Claude vs GPT-5.6 Terra, with identical retrieved evidence</p></div>
+        <div><dt>Correct answers</dt><dd>44% <span>→</span> 92%</dd><p>AI reading the report text vs TagTrace's tag lookup, on a 102-question benchmark</p></div>
+        <div><dt>Unanswered</dt><dd>52% <span>→</span> 3%</dd><p>Given the right tagged figures, the AI rarely has to give up</p></div>
+        <div><dt>Wrong when answering</dt><dd>5.1% <span class="vs">vs</span> 18.2%</dd><p>Claude vs GPT-5.6 Terra, given exactly the same evidence</p></div>
       </dl>
     </div>
   </section>
@@ -56,7 +75,7 @@
           <span class="drop-icon" aria-hidden="true"></span>
           <strong>Upload an iXBRL filing</strong>
           <span class="muted">.xhtml, .html or report-package .zip, up to {{ max_upload_mb }} MB</span>
-          <span class="muted small">Download one free from Companies House: company page → Filing history → Accounts</span>
+          <span class="muted small">Free from Companies House: company page → Filing history → <a href="#guide">Download iXBRL</a></span>
         </label>
         <div id="samples" class="samples" hidden>
           <p class="muted small">Or try a sample filing:</p>
@@ -127,37 +146,126 @@
     </section>
   </section>
 
-  <section id="method" class="band">
+  <section id="guide" class="band" aria-labelledby="guide-title">
     <div class="wrap">
-      <h2 class="section-title">How it works</h2>
-      <ol class="steps">
-        <li><h3>Parse</h3><p>The iXBRL document is parsed directly with lxml. Scale, sign, nil values, continuation chains and <code>ix:exclude</code> are resolved, and no taxonomy download is needed.</p></li>
-        <li><h3>Store</h3><p>Every fact is stored with its concept, value, unit, period and dimensional qualifiers. The multiple values a filing tags for one concept are all kept.</p></li>
-        <li><h3>Retrieve</h3><p>Tag-aware retrieval selects the facts whose concepts match the question. The model reads structured evidence instead of a truncated slice of a 300,000-token report.</p></li>
-        <li><h3>Verify</h3><p>The model must cite evidence IDs. The server reads the value from the cited fact, does any arithmetic itself, and checks narrative quotes against the tagged text.</p></li>
-      </ol>
+      <h2 class="section-title" id="guide-title">New to company accounts? Start here</h2>
+      <p class="section-intro">Every UK limited company publishes its accounts for free on Companies House. They're full of useful facts, like how much the company sells, whether it makes a profit and how much cash it holds, but they're hard to read if you're not an accountant. TagTrace lets you ask for those facts in everyday words.</p>
+
+      <div class="guide-grid">
+        <article class="info-card">
+          <h3>What is an iXBRL filing?</h3>
+          <p>It's the annual report saved as a web page, with a hidden <strong>tag</strong> on every number saying exactly what it is (for example, <em>profit before tax for the year ended 31 December 2025</em>). Most UK companies now file their accounts this way.</p>
+          <p>Because every figure is labelled, TagTrace can look up the exact number. It doesn't have to hope an AI read the right line of a 200-page document.</p>
+        </article>
+        <article class="info-card">
+          <h3>Get a filing in 4 steps</h3>
+          <ol class="howto">
+            {% for title, text in c.GET_A_FILING %}
+            <li><strong>{{ title }}.</strong> {{ text }}</li>
+            {% endfor %}
+          </ol>
+          <p class="small"><a href="https://find-and-update.company-information.service.gov.uk/" target="_blank" rel="noopener noreferrer">Open Companies House search ↗</a></p>
+        </article>
+        <article class="info-card">
+          <h3>Good first questions</h3>
+          <ul class="starter">
+            {% for q in c.STARTER_QUESTIONS %}<li>{{ q }}</li>{% endfor %}
+          </ul>
+          <p class="small muted">Small companies often file only a balance sheet, so turnover and profit may not be there. Cash and net assets usually are.</p>
+        </article>
+      </div>
+
+      <h3 class="subsection">What people use it for</h3>
+      <div class="use-grid">
+        {% for title, text in c.USE_CASES %}
+        <div class="use-card"><h4>{{ title }}</h4><p>{{ text }}</p></div>
+        {% endfor %}
+      </div>
+
+      <h3 class="subsection" id="glossary">Words you'll see in answers</h3>
+      <dl class="glossary">
+        {% for term, meaning in c.GLOSSARY %}
+        <div><dt>{{ term }}</dt><dd>{{ meaning }}</dd></div>
+        {% endfor %}
+      </dl>
     </div>
   </section>
 
-  <section id="results" class="wrap results">
-    <h2 class="section-title">Research findings</h2>
-    <div class="results-grid">
-      <table class="table">
-        <caption>102-question benchmark · 12 UK filings (8 FTSE 350 IFRS, 4 FRS 102)</caption>
-        <thead><tr><th>Condition</th><th>Correct</th><th>Incorrect</th><th>Abstained</th></tr></thead>
-        <tbody>
-          <tr><td>Claude · C1 naive (8k-token text)</td><td>44.1%</td><td>4</td><td>53</td></tr>
-          <tr><td>Claude · C3 tag-aware retrieval</td><td class="strong">92.2%</td><td>5</td><td>3</td></tr>
-          <tr><td>GPT-5.6 Terra · C1 naive</td><td>41.2%</td><td>5</td><td>55</td></tr>
-          <tr><td>GPT-5.6 Terra · C3 retrieval</td><td>79.4%</td><td>18</td><td>3</td></tr>
-        </tbody>
-      </table>
-      <div class="findings">
-        <p><strong>Retrieval fixes coverage.</strong> Both models stopped abstaining once they were given the relevant tagged facts. Claude's C1→C3 gain was +48.0 pp (95% CI 38.2–57.8).</p>
-        <p><strong>Reliability depends on the model.</strong> With byte-identical evidence, GPT-5.6 Terra was wrong on 18.2% of the questions it attempted, against 5.1% for Claude.</p>
-        <p><strong>Self-consistency did not detect errors.</strong> Sampling-based detection caught 0 of the incorrect answers for either model. The errors were systematic, so they did not vary between samples.</p>
-        <p class="muted small">Limitations: a small corpus, three consistency samples, and results that do not transfer automatically to other filings. This demo uses a structured-output variant of the C3 prompt with server-side verification, so it is not the exact benchmarked condition.</p>
+  <section id="method" class="wrap section" aria-labelledby="method-title">
+    <h2 class="section-title" id="method-title">How TagTrace answers a question</h2>
+    <ol class="steps">
+      <li><h3>Read the tags</h3><p>The filing is read directly and every tagged figure is extracted with its units, sign and scale (so a figure shown in £m becomes the real number). Nothing is downloaded from anywhere else.</p></li>
+      <li><h3>Store every version</h3><p>Each figure is kept with its concept, period and any breakdown. When a filing tags the same concept several times, for example this year, last year and by segment, all of them are kept.</p></li>
+      <li><h3>Find the right figures</h3><p>Your question is matched to the concepts it's about, and only those figures go to the AI. That's a few dozen facts rather than a slice of a report that can run to hundreds of pages.</p></li>
+      <li><h3>Check before showing</h3><p>The AI has to name the figures it used. The server looks the value up itself, does any arithmetic itself, and checks that any quote really appears in the filing.</p></li>
+    </ol>
+
+    <div class="transparency">
+      <div>
+        <h3>What the badges mean</h3>
+        <ul class="legend">
+          <li><span class="badge verified">Matched to tagged fact</span> read straight from one tagged figure</li>
+          <li><span class="badge computed">Computed from tagged facts</span> the server did the maths, not the AI</li>
+          <li><span class="badge quoted">Quote found in filing</span> the quoted sentence appears word for word</li>
+          <li><span class="badge unverified">Not verified</span> the AI's answer couldn't be confirmed, so treat it with care</li>
+          <li><span class="badge abstained">Not in tagged data</span> nothing in the filing answers it, so no number is made up</li>
+        </ul>
       </div>
+      <div>
+        <h3>What it can't do</h3>
+        <ul class="plain">
+          <li>It can confirm a number is in the filing, but not that it's the <em>right</em> one. Check the period and breakdown on each card.</li>
+          <li>It only knows what's in the file you upload. It doesn't know about news, share prices or other years' accounts.</li>
+          <li>It can't read scanned or PDF-only accounts.</li>
+          <li>It isn't financial advice.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Where your data goes</h3>
+        <ul class="plain">
+          <li>Your file is deleted as soon as it has been read.</li>
+          <li>The extracted figures are deleted when you clear the filing, or after 30 minutes of inactivity.</li>
+          <li>Your question and the matching figures are sent to OpenAI or Anthropic to write the answer.</li>
+          <li>No sign-up, no analytics and no adverts.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="results" class="band" aria-labelledby="results-title">
+    <div class="wrap">
+      <h2 class="section-title" id="results-title">Does it work? The research behind it</h2>
+      <p class="section-intro">TagTrace comes from my MSc Artificial Intelligence dissertation on detecting and reducing AI hallucinations in UK iXBRL financial reports. I tested two approaches on 102 questions about 12 real UK filings: letting the AI read the report text, and giving it the tagged figures instead.</p>
+      <div class="results-grid">
+        <table class="table">
+          <caption>102-question benchmark · 12 UK filings (8 FTSE 350 under IFRS, 4 private companies under FRS 102)</caption>
+          <thead><tr><th>Approach</th><th>Correct</th><th>Wrong</th><th>No answer</th></tr></thead>
+          <tbody>
+            <tr><td>Claude · reads report text</td><td>44.1%</td><td>4</td><td>53</td></tr>
+            <tr><td>Claude · tagged figures</td><td class="strong">92.2%</td><td>5</td><td>3</td></tr>
+            <tr><td>GPT-5.6 Terra · reads report text</td><td>41.2%</td><td>5</td><td>55</td></tr>
+            <tr><td>GPT-5.6 Terra · tagged figures</td><td>79.4%</td><td>18</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <div class="findings">
+          <p><strong>Giving the AI the right figures fixes coverage.</strong> Annual reports are too long for an AI to read in one go, so reading the text meant cutting it short, and the answer was often in the part that was cut. With the tagged figures, both models almost stopped giving up. Claude improved by 48 percentage points (95% CI 38.2–57.8).</p>
+          <p><strong>The model still matters.</strong> With exactly the same evidence, GPT-5.6 Terra was wrong on 18.2% of the questions it answered and Claude on 5.1%.</p>
+          <p><strong>Asking the same question several times didn't catch the mistakes.</strong> The wrong answers were consistent, so repeating the question gave the same wrong number. That's why TagTrace checks answers against the filing instead.</p>
+          <p class="muted small">Limitations: a small set of filings, three repeats per consistency check, and results that may not carry over to every filing. This site uses a version of the method with structured answers and server-side checks, so it isn't exactly the benchmarked setup.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="wrap section" aria-labelledby="faq-title">
+    <h2 class="section-title" id="faq-title">Frequently asked questions</h2>
+    <div class="faq">
+      {% for q, a in faq %}
+      <details{% if loop.first %} open{% endif %}>
+        <summary>{{ q }}</summary>
+        <p>{{ a }}</p>
+      </details>
+      {% endfor %}
     </div>
   </section>
 
@@ -165,11 +273,11 @@
     <div class="wrap contact">
       <div>
         <h2 class="section-title">Want more questions, or Claude access?</h2>
-        <p>The public model is free for {{ public_limit }} questions per session. For more questions or a Claude access code, send me a message with a line about what you'd like to test.</p>
+        <p>The public model is free for {{ public_limit }} questions per visit. For more, or for a free Claude access code, send me a message with a line about what you'd like to test.</p>
       </div>
       <div class="contact-actions">
         {% if contact_linkedin %}<a class="btn light" href="{{ contact_linkedin }}" target="_blank" rel="noopener noreferrer">Message on LinkedIn</a>{% endif %}
-        {% if contact_email %}<a class="btn ghost-light" href="mailto:{{ contact_email }}?subject=iXBRL%20demo%20access">Email me</a>{% endif %}
+        {% if contact_email %}<a class="btn ghost-light" href="mailto:{{ contact_email }}?subject=TagTrace%20access">Email me</a>{% endif %}
       </div>
     </div>
   </section>
@@ -177,8 +285,12 @@
 
 <footer class="footer">
   <div class="wrap footer-inner">
-    <p><strong>Nikhil Rana</strong> · MSc Artificial Intelligence, University of West London · Supervisor: Dr Ali Gheitasy · <a href="https://nikhilrana.com.np" target="_blank" rel="noopener noreferrer">Portfolio</a></p>
-    <p class="muted small">Privacy: uploaded files are deleted as soon as they are parsed, and the extracted facts are deleted within 30 minutes. Questions and the retrieved evidence are sent to OpenAI (public model) or Anthropic (Claude) to generate answers, and OpenAI may use data from the public model to improve its models. Don't upload anything confidential. Filings on the public register are Crown copyright under the Open Government Licence v3.0. This is a research demonstration and not financial advice. Always check figures against the filing.</p>
+    <p class="footer-links"><strong>TagTrace</strong> · Built by Nikhil Rana ·
+      <a href="{{ c.PORTFOLIO_URL }}" target="_blank" rel="noopener noreferrer">Portfolio</a> ·
+      <a href="{{ c.GITHUB_URL }}" target="_blank" rel="noopener noreferrer">Source code on GitHub</a>{% if contact_linkedin %} ·
+      <a href="{{ contact_linkedin }}" target="_blank" rel="noopener noreferrer">LinkedIn</a>{% endif %}</p>
+    <p class="muted small">Based on my MSc Artificial Intelligence research at the University of West London (2026), supervised by Dr Ali Gheitasy.</p>
+    <p class="muted small">Privacy: uploaded files are deleted as soon as they are parsed, and the extracted facts are deleted within 30 minutes. Questions and the retrieved evidence are sent to OpenAI (public model) or Anthropic (Claude) to generate answers, and OpenAI may use data from the public model to improve its models. Don't upload anything confidential. Filings on the public register are Crown copyright under the Open Government Licence v3.0. iXBRL and XBRL are trademarks of XBRL International Inc.; TagTrace is an independent project, not affiliated with XBRL International, Companies House, OpenAI or Anthropic. This is a research demonstration and not financial advice. Always check figures against the filing.</p>
   </div>
 </footer>
 

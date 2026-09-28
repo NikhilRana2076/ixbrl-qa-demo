@@ -67,6 +67,7 @@ class Settings:
     contact_email: str = ""
     contact_linkedin: str = ""
     samples_dir: str = "samples"
+    site_url: str = "https://ixbrl.nikhilrana.com.np"
 
     @property
     def is_production(self) -> bool:
@@ -95,4 +96,5 @@ class Settings:
             contact_email=e("CONTACT_EMAIL", ""),
             contact_linkedin=e("CONTACT_LINKEDIN", ""),
             samples_dir=e("SAMPLES_DIR", "samples"),
+            site_url=e("SITE_URL", "https://ixbrl.nikhilrana.com.np").rstrip("/"),
         )

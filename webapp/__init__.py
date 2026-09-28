@@ -1,7 +1,7 @@
 """
 Public web demo for the iXBRL hallucination-mitigation system.
 
-    Nikhil Rana (34134403), MSc Artificial Intelligence, University of West London
+    TagTrace. Nikhil Rana, MSc Artificial Intelligence, University of West London
     "Detecting and Mitigating Hallucinations in Large Language Models for
      Financial Document Analysis: A Focus on UK iXBRL Reporting"
 
@@ -10,6 +10,7 @@ Production:    gunicorn -c gunicorn.conf.py wsgi:app
 """
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 import shutil
@@ -20,10 +21,11 @@ from contextlib import closing
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, session
+from markupsafe import Markup
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from . import ingest
+from . import content, ingest
 from .answering import answer_question
 from .config import Settings, hash_code
 from .ingest import ALLOWED_EXT, UploadError, ingest_path, ingest_upload
@@ -121,10 +123,26 @@ def create_app(settings: Settings | None = None) -> Flask:
     # ------------------------------------------------------------------- pages
     @app.get("/")
     def index():
+        faq = content.faq(s.public_questions_per_session, s.max_upload_mb,
+                          s.session_idle_minutes)
         return render_template("index.html", contact_email=s.contact_email,
                                contact_linkedin=s.contact_linkedin,
                                public_limit=s.public_questions_per_session,
-                               max_upload_mb=s.max_upload_mb)
+                               max_upload_mb=s.max_upload_mb,
+                               site_url=s.site_url, c=content, faq=faq,
+                               structured_data=_structured_data(s, faq))
+
+    @app.get("/robots.txt")
+    def robots():
+        body = f"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {s.site_url}/sitemap.xml\n"
+        return app.response_class(body, mimetype="text/plain")
+
+    @app.get("/sitemap.xml")
+    def sitemap():
+        body = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+                f"  <url><loc>{s.site_url}/</loc></url>\n</urlset>\n")
+        return app.response_class(body, mimetype="application/xml")
 
     @app.get("/healthz")
     def healthz():
@@ -263,3 +281,21 @@ def create_app(settings: Settings | None = None) -> Flask:
         return jsonify(result)
 
     return app
+
+
+def _structured_data(s: Settings, faq: list[tuple[str, str]]) -> Markup:
+    """schema.org JSON-LD for search engines (WebApplication + FAQPage)."""
+    author = {"@type": "Person", "name": "Nikhil Rana", "url": content.PORTFOLIO_URL,
+              "sameAs": [u for u in (s.contact_linkedin, content.GITHUB_URL) if u]}
+    graph = [
+        {"@type": "WebApplication", "name": content.BRAND, "url": s.site_url + "/",
+         "description": content.TAGLINE + ". Free demo for UK iXBRL annual reports from Companies House.",
+         "applicationCategory": "FinanceApplication", "operatingSystem": "Web",
+         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "GBP"},
+         "author": author},
+        {"@type": "FAQPage", "mainEntity": [
+            {"@type": "Question", "name": q,
+             "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
+    ]
+    raw = json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False)
+    return Markup(raw.replace("</", "<\\/"))
