@@ -64,7 +64,7 @@ def retrieve_by_keywords(conn: sqlite3.Connection, keywords: list[str],
     clauses = " OR ".join("lower(local_name) LIKE ?" for _ in keywords)
     params = [f"%{k.lower()}%" for k in keywords]
     sql = (f"SELECT * FROM facts WHERE ({clauses}) AND is_nil = 0 "
-           f"ORDER BY has_dimension ASC, period_end DESC, fact_id ASC "
+           f"ORDER BY has_dimension ASC, COALESCE(period_end, period_instant) DESC, fact_id ASC "
            f"LIMIT ?")
     rows = conn.execute(sql, params + [limit]).fetchall()
     return [dict(r) for r in rows]
@@ -95,7 +95,7 @@ def retrieve_summary_evidence(conn: sqlite3.Connection,
         rows = conn.execute(
             "SELECT * FROM facts WHERE company_number = ? "
             "AND local_name = ? AND is_nil = 0 AND has_dimension = 0 "
-            "ORDER BY period_end DESC LIMIT 1",
+            "ORDER BY COALESCE(period_end, period_instant) DESC LIMIT 1",
             (company_number, concept),
         ).fetchall()
         facts.extend(dict(r) for r in rows)
