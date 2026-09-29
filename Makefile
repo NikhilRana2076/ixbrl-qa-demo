@@ -1,6 +1,6 @@
 PY ?= python
 
-.PHONY: install run preview test test-unit test-integration lint fix smoke
+.PHONY: install run preview test test-unit test-integration lint fix smoke eval-retrieval eval-ci
 
 install:          ## dev dependencies (Python 3.12)
 	$(PY) -m pip install -r requirements-dev.txt
@@ -27,3 +27,9 @@ fix:
 
 smoke:            ## adapter check on any filing: make smoke FILE=path/to/filing.xhtml
 	$(PY) tests/smoke_real.py $(FILE)
+
+eval-retrieval:   ## free: gold-fact rank for all 102 questions
+	$(PY) eval/run_eval.py retrieval --out eval/reports/retrieval.json
+
+eval-ci:          ## 20-question subset through the live pipeline (API spend, $0.50 cap)
+	$(PY) eval/run_eval.py answer --subset ci --max-usd 0.50 --out eval/reports/answer_ci.json
