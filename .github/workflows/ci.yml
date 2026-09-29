@@ -35,7 +35,7 @@ jobs:
         run: python -m pytest -q tests_integration
 
       - name: Smoke test on the Vodafone sample
-        run: python tests/smoke_real.py samples/Vodafone.html
+        run: python tests/smoke_real.py samples/Vodafone_Group_plc_FY2026.html
 
   # Phase 4 adds an `eval` job: the benchmark subset with a cheap model,
   # failing the build if accuracy drops below a threshold.

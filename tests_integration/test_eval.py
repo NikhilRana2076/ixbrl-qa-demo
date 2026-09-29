@@ -10,7 +10,7 @@ import shutil
 from types import SimpleNamespace
 
 import pytest
-from conftest import FIXTURES, SAMPLES
+from conftest import FIXTURES, VODAFONE
 
 from eval import run_eval
 from eval.scoring import gold_values, score, summarise
@@ -130,7 +130,7 @@ PLAN = {
 def mini(tmp_path, monkeypatch):
     filings = tmp_path / "filings"
     filings.mkdir()
-    shutil.copy(SAMPLES / "Vodafone.html", filings / "VOD_Vodafone.html")
+    shutil.copy(VODAFONE, filings / "VOD_Vodafone.html")
     monkeypatch.setattr(run_eval, "FILINGS", filings)
     monkeypatch.setattr(run_eval, "STORES", tmp_path / "stores")
     orig = run_eval.build_store

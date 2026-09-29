@@ -1,10 +1,10 @@
-"""Retrieval behaviour on a real filing (samples/Vodafone.html, FY to 31 March 2026).
+"""Retrieval behaviour on a real filing (Vodafone Group plc, FY to 31 March 2026).
 
 These guard the web app's keyword retriever against *selection* errors: returning
 the wrong period, a breakdown instead of the total, or no balance-sheet fact at all.
 """
 import pytest
-from conftest import SAMPLES
+from conftest import VODAFONE
 
 
 @pytest.fixture(scope="module")
@@ -15,7 +15,7 @@ def conn(tmp_path_factory):
     db = tmp_path_factory.mktemp("store") / "facts.sqlite"
     c = connect(db)
     insert_company(c, {"company_number": "VOD"})
-    load_filing(c, "VOD", parse_filing(SAMPLES / "Vodafone.html"))
+    load_filing(c, "VOD", parse_filing(VODAFONE))
     c.commit()
     yield c
     c.close()

@@ -34,9 +34,9 @@ except ImportError:                    # optional: the app still runs without it
 from . import content, ingest
 from .answering import answer_question
 from .config import Settings, hash_code
+from .formatting import dimensions, format_value, label, period_text
 from .ingest import ALLOWED_EXT, UploadError, ingest_path, ingest_upload
 from .llm import PROVIDERS, make_client
-from .formatting import dimensions, format_value, label, period_text
 from .overview import build_overview
 from .security import SECURITY_HEADERS, RateLimiter, UsageLedger, client_ip, same_origin_ok
 from .sessions import FilingRegistry, FilingSession

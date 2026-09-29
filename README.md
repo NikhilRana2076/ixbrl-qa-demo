@@ -154,7 +154,8 @@ make test           # both suites below, no API calls
 | Suite | What it covers |
 |---|---|
 | `tests/` (20 tests) | Web layer against a stubbed `src/`: security headers, upload hardening, quotas, answer verification |
-| `tests_integration/` (21 tests + 1 known gap) | The real parser on an edge-case fixture (scale, sign, nil, fixed-zero, split digits, `ix:exclude`, dimensions, divide units, continuations, XXE) and retrieval ranking on the Vodafone sample |
+| `tests_integration/` (34 tests + 1 known gap) | The real parser on an edge-case fixture (scale, sign, nil, fixed-zero, split digits, `ix:exclude`, dimensions, divide units, continuations, XXE), retrieval ranking on the Vodafone sample, and the evaluation harness |
+| `eval/` | The 102-question dissertation benchmark run against the live pipeline: free retrieval check on every PR, answer accuracy on a 20-question subset or all 102. See [eval/README.md](eval/README.md). |
 
 GitHub Actions runs lint, both suites and the smoke test on every push and pull request.
 
@@ -167,6 +168,7 @@ src/                parser, fact store, retrieval and model clients from the dis
 webapp/             Flask app: routes, answer verification, security, quotas, page content
 tests/              unit tests with stubbed models, plus a smoke test against the real parser
 tests_integration/  tests of the real parser and retrieval (fixtures + samples/)
+eval/               benchmark, evaluation harness and scoring
 ```
 
 ## Built by

@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT))
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLES = ROOT / "samples"
+VODAFONE = SAMPLES / "Vodafone_Group_plc_FY2026.html"
 
 
 @pytest.fixture(scope="session")
