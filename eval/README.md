@@ -29,6 +29,27 @@ python eval/run_eval.py answer --tier locked --out eval/reports/full_locked.json
 
 Each run prints one line per question and writes a JSON report with the outcome, the verified value, the search terms the model chose, and timing.
 
+## Baseline Results
+
+Evaluated against the full 102-question benchmark on all 12 companies (September 2026).
+
+**Retrieval Phase (free):**
+- recall@15: **93.14%** (95/102 gold facts ranked in top-15)
+- all_inputs_rank_1: **45.1%** (46/102 ranked at position #1)
+- gold_not_in_store: 0 (all facts found in database)
+
+**Answer Phase (API, $0.4337 spent):**
+- Overall accuracy: **65.69%** (67/102 correct)
+  - Extraction (70 questions): 70% accuracy
+  - Computation (20 questions): 65% accuracy
+  - Disclosure (12 questions): 41.67% accuracy
+- Error rate when answered: 6.94% (5 wrong + 3 errors / 72 answered)
+- Abstained: 25.49% (26/102) — model preferred honest abstention over hallucination
+
+**Benchmark companies:** 12 real UK firms from Companies House (FTSE 350 and FRS102 private, mix of IFRS and local GAAP).
+
+See `retrieval.json` and `answer.json` in `eval/reports/` for detailed per-question results.
+
 ## How answers are scored
 
 | Outcome | Meaning |
