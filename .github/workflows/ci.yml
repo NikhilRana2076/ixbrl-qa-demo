@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # pinned lxml/pandas have no wheels for 3.13+
+          cache: pip
+          cache-dependency-path: |
+            requirements-web.txt
+            requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Unit tests (web layer, stubbed src)
+        run: python -m pytest -q tests
+
+      - name: Integration tests (real parser + retrieval)
+        run: python -m pytest -q tests_integration
+
+      - name: Smoke test on the Vodafone sample
+        run: python tests/smoke_real.py samples/Vodafone.html
+
+  # Phase 4 adds an `eval` job: the benchmark subset with a cheap model,
+  # failing the build if accuracy drops below a threshold.
