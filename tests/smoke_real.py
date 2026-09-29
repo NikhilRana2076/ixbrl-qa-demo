@@ -21,9 +21,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from webapp import ingest  # noqa: E402
 from webapp.answering import _hydrate_facts, _hydrate_narratives, build_evidence  # noqa: E402
 from webapp.config import Settings  # noqa: E402
-from webapp import ingest  # noqa: E402
 from webapp.overview import build_overview  # noqa: E402
 
 

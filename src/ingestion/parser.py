@@ -310,7 +310,7 @@ def parse_numeric_fact(el) -> NumericFact:
     )
 
     # Explicit XML nil
-    if el.get(f"{{http://www.w3.org/2001/XMLSchema-instance}}nil") == "true":
+    if el.get("{http://www.w3.org/2001/XMLSchema-instance}nil") == "true":
         fact.is_nil = True
         fact.value = 0.0
         return fact

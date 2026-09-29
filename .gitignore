@@ -11,3 +11,5 @@ logs/
 results/raw_outputs/
 data/raw/
 .pytest_cache/
+eval/.stores/
+eval/reports/
