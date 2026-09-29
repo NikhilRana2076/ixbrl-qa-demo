@@ -47,7 +47,7 @@ python -m pytest -q tests
 | Keys only on the server | Set them in Render → Environment. The browser only ever talks to your Flask server. |
 | Debug off | Production runs under gunicorn. `app.run(debug=True)` is never used. |
 
-What stops abuse, in order: burst rate limit per IP → 10 questions/session → 20/IP/day → access code for Claude (per-code allowance) → **global cap of 300 questions and $2/day** → provider budgets. Counters are held in memory and reset on redeploy. The global cap and provider budgets still bound the worst case.
+What stops abuse, in order: burst rate limit per IP → 25 questions/session → 50/IP/day → access code for Claude (per-code allowance) → **global cap of 300 questions and $2/day** → provider budgets. Counters are held in memory and reset on redeploy. The global cap and provider budgets still bound the worst case.
 
 ## 3. Deploy on Render (free)
 

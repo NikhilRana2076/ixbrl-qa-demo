@@ -54,9 +54,9 @@
         <a class="btn ghost-light" href="#guide">New to company accounts? Start here</a>
       </div>
       <dl class="hero-stats">
-        <div><dt>Correct answers</dt><dd>44% <span>→</span> 92%</dd><p>AI reading the report text vs TagTrace's tag lookup, on a 102-question benchmark</p></div>
-        <div><dt>Unanswered</dt><dd>52% <span>→</span> 3%</dd><p>Given the right tagged figures, the AI rarely has to give up</p></div>
-        <div><dt>Wrong when answering</dt><dd>5.1% <span class="vs">vs</span> 18.2%</dd><p>Claude vs GPT-5.6 Terra, given exactly the same evidence</p></div>
+        <div><dt>Correct answers</dt><dd>44% <span>→</span> 92%</dd><dd class="stat-note">AI reading the report text vs TagTrace's tag lookup, on a 102-question benchmark</dd></div>
+        <div><dt>Unanswered</dt><dd>52% <span>→</span> 3%</dd><dd class="stat-note">Given the right tagged figures, the AI rarely has to give up</dd></div>
+        <div><dt>Wrong when answering</dt><dd>5.1% <span class="vs">vs</span> 18.2%</dd><dd class="stat-note">Claude vs GPT-5.6 Terra, given exactly the same evidence</dd></div>
       </dl>
     </div>
   </section>
@@ -75,7 +75,7 @@
           <span class="drop-icon" aria-hidden="true"></span>
           <strong>Upload an iXBRL filing</strong>
           <span class="muted">.xhtml, .html or report-package .zip, up to {{ max_upload_mb }} MB</span>
-          <span class="muted small">Free from Companies House: company page → Filing history → <a href="#guide">Download iXBRL</a></span>
+          <span class="muted small">Free from Companies House (Filing history → Download iXBRL) or, for listed companies, the <a href="#guide">FCA register</a></span>
         </label>
         <div id="samples" class="samples" hidden>
           <p class="muted small">Or try a sample filing:</p>
@@ -85,6 +85,7 @@
           <div class="spinner" aria-hidden="true"></div>
           <div><strong id="progressTitle">Parsing filing…</strong><p class="muted small" id="progressDetail">Extracting tagged facts, contexts and dimensions.</p></div>
         </div>
+        <p id="filingHint" class="filing-hint" role="status" hidden></p>
         <p id="uploadError" class="form-error" role="alert" hidden></p>
       </div>
 
@@ -99,8 +100,14 @@
           <div><dt>Dimensional</dt><dd id="ovDim"></dd></div>
           <div><dt>Extension facts</dt><dd id="ovExt"></dd></div>
         </dl>
+        <button id="exploreBtn" class="btn ghost explore-btn" type="button">Explore all tagged figures</button>
         <h3 class="subhead">Headline figures</h3>
         <ul id="ovMetrics" class="metrics"></ul>
+        <div id="ratiosBlock" hidden>
+          <h3 class="subhead">Key ratios <span class="subhead-note">calculated from the tags</span></h3>
+          <ul id="ovRatios" class="ratios"></ul>
+          <p class="muted small">Calculated by TagTrace from the figures the company tagged, not reported by the company. Tap a ratio to see its inputs.</p>
+        </div>
         <div id="ovWarnings"></div>
         <p class="muted small privacy-inline">Your file was deleted once it was parsed. The extracted facts are removed when you clear the filing or after 30 minutes of inactivity.</p>
       </div>
@@ -116,7 +123,7 @@
       <div class="model-switch" role="radiogroup" aria-label="Model">
         <button class="model-opt" role="radio" aria-checked="true" data-model="public">
           <span class="model-name">GPT-5.6 Terra</span>
-          <span class="model-sub">Public · <span id="publicLeft">10 free questions</span></span>
+          <span class="model-sub">Public · <span id="publicLeft">{{ public_limit }} free questions</span></span>
         </button>
         <button class="model-opt" role="radio" aria-checked="false" data-model="locked">
           <span class="model-name"><span class="lock" aria-hidden="true"></span>Claude Sonnet 4.6</span>
@@ -165,11 +172,22 @@
             {% endfor %}
           </ol>
           <p class="small"><a href="https://find-and-update.company-information.service.gov.uk/" target="_blank" rel="noopener noreferrer">Open Companies House search ↗</a></p>
+          <div class="alt-source">
+            <h4>Listed company? Try the FCA register</h4>
+            <p class="small">Large listed companies often have only a PDF on Companies House. Their tagged annual reports are on the FCA's register instead.</p>
+            <ol class="howto">
+              {% for title, text in c.GET_FROM_FCA %}
+              <li><strong>{{ title }}.</strong> {{ text }}</li>
+              {% endfor %}
+            </ol>
+            <p class="small"><a href="{{ c.FCA_NSM_URL }}" target="_blank" rel="noopener noreferrer">Open the FCA National Storage Mechanism ↗</a></p>
+          </div>
         </article>
         <article class="info-card">
           <h3>Good first questions</h3>
+          <p class="small muted">Click one to put it in the question box.</p>
           <ul class="starter">
-            {% for q in c.STARTER_QUESTIONS %}<li>{{ q }}</li>{% endfor %}
+            {% for q in c.STARTER_QUESTIONS %}<li><button type="button" class="starter-q" data-q="{{ q }}">{{ q }}</button></li>{% endfor %}
           </ul>
           <p class="small muted">Small companies often file only a balance sheet, so turnover and profit may not be there. Cash and net assets usually are.</p>
         </article>
@@ -226,6 +244,7 @@
           <li>Your file is deleted as soon as it has been read.</li>
           <li>The extracted figures are deleted when you clear the filing, or after 30 minutes of inactivity.</li>
           <li>Your question and the matching figures are sent to OpenAI or Anthropic to write the answer.</li>
+          <li>If you rate an answer, the question, the answer and your vote are logged to measure accuracy. Nothing identifies you.</li>
           <li>No sign-up, no analytics and no adverts.</li>
         </ul>
       </div>
@@ -290,7 +309,7 @@
       <a href="{{ c.GITHUB_URL }}" target="_blank" rel="noopener noreferrer">Source code on GitHub</a>{% if contact_linkedin %} ·
       <a href="{{ contact_linkedin }}" target="_blank" rel="noopener noreferrer">LinkedIn</a>{% endif %}</p>
     <p class="muted small">Based on my MSc Artificial Intelligence research at the University of West London (2026), supervised by Dr Ali Gheitasy.</p>
-    <p class="muted small">Privacy: uploaded files are deleted as soon as they are parsed, and the extracted facts are deleted within 30 minutes. Questions and the retrieved evidence are sent to OpenAI (public model) or Anthropic (Claude) to generate answers, and OpenAI may use data from the public model to improve its models. Don't upload anything confidential. Filings on the public register are Crown copyright under the Open Government Licence v3.0. iXBRL and XBRL are trademarks of XBRL International Inc.; TagTrace is an independent project, not affiliated with XBRL International, Companies House, OpenAI or Anthropic. This is a research demonstration and not financial advice. Always check figures against the filing.</p>
+    <p class="muted small">Privacy: uploaded files are deleted as soon as they are parsed, and the extracted facts are deleted within 30 minutes. Questions and the retrieved evidence are sent to OpenAI (public model) or Anthropic (Claude) to generate answers, and OpenAI may use data from the public model to improve its models. Don't upload anything confidential. Companies House filings are Crown copyright under the Open Government Licence v3.0; annual reports from listed companies remain the copyright of those companies. iXBRL and XBRL are trademarks of XBRL International Inc.; TagTrace is an independent project, not affiliated with XBRL International, Companies House, the FCA, OpenAI or Anthropic. This is a research demonstration and not financial advice. Always check figures against the filing.</p>
   </div>
 </footer>
 
@@ -322,6 +341,31 @@
       <button type="button" class="link-btn" data-close>Close</button>
     </div>
   </div>
+</dialog>
+
+<!-- Fact explorer -->
+<dialog id="factsDialog" class="dialog wide" aria-labelledby="factsTitle">
+  <div class="fx-head">
+    <div>
+      <h2 id="factsTitle">Every tagged figure</h2>
+      <p class="muted small" id="fxCount">Loading…</p>
+    </div>
+    <button type="button" class="link-btn" data-close-facts>Close</button>
+  </div>
+  <div class="fx-filters">
+    <label class="sr-only" for="fxSearch">Search figures</label>
+    <input id="fxSearch" class="fx-search" type="search" placeholder="Search, e.g. revenue, dividend, goodwill, lease" autocomplete="off">
+    <label class="sr-only" for="fxPeriod">Period</label>
+    <select id="fxPeriod" class="fx-select"><option value="">All periods</option></select>
+    <label class="fx-check"><input type="checkbox" id="fxDims"> Include breakdowns</label>
+  </div>
+  <div class="fx-table-wrap">
+    <table class="ev-table fx-table">
+      <thead><tr><th>Figure</th><th>Value</th><th>Period</th><th>Breakdown</th><th><span class="sr-only">Ask</span></th></tr></thead>
+      <tbody id="fxBody"></tbody>
+    </table>
+  </div>
+  <p class="muted small fx-foot">Values come straight from the filing's tags. Choose Ask to question the AI about a figure.</p>
 </dialog>
 
 <template id="cardTpl">

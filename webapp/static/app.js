@@ -122,8 +122,24 @@
     onFiling(null);
   });
 
+  document.querySelectorAll("[data-q]").forEach((b) => b.addEventListener("click", () => {
+    const q = b.dataset.q;
+    $("#demo").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (state.filing) {
+      $("#question").value = q; $("#question").focus({ preventScroll: true });
+    } else {
+      state.pendingQ = q;
+      const hint = $("#filingHint");
+      hint.textContent = `Load a filing first${$("#sampleList").childElementCount ? " (or try the sample below)" : ""}, and your question \u201c${q}\u201d will be ready to ask.`;
+      hint.hidden = false;
+    }
+  }));
+
   function onFiling(f) {
     state.filing = f;
+    fx.rows = null;
+    if (f && state.pendingQ) { $("#question").value = state.pendingQ; state.pendingQ = null; $("#question").focus({ preventScroll: true }); }
+    if (f) $("#filingHint").hidden = true;
     $("#loader").hidden = !!f; $("#overview").hidden = !f; $("#clearBtn").hidden = !f;
     $("#question").disabled = !f; $("#askBtn").disabled = !f;
     $("#question").placeholder = f ? "Ask about this filing, e.g. “What was profit before tax?”" : "Load a filing, then ask e.g. “What was revenue for the year?”";
@@ -148,7 +164,77 @@
     }
     if (!f.metrics.length) ul.append(el("li", {}, el("span", { class: "m-label muted", text: "No standard headline concepts tagged." })));
     const w = $("#ovWarnings"); w.replaceChildren(...(f.warnings || []).map((t) => el("p", { class: "note", text: t })));
-    for (const s of f.suggestions || []) sug.append(el("button", { class: "chip", type: "button", text: s, onclick: () => ask(s) }));
+    const rl = $("#ovRatios"); rl.replaceChildren();
+    for (const r of f.ratios || []) {
+      const pp = r.change_pp;
+      const li = el("li", {},
+        el("button", { class: "ratio-row", type: "button", "aria-expanded": "false" },
+          el("span", { class: "m-label", text: r.label }),
+          el("span", { class: "m-value" + (r.value < 0 ? " neg" : ""), text: r.display }),
+          el("span", { class: "m-period", text: r.period }),
+          pp == null ? el("span") : el("span", { class: "m-change " + (pp >= 0 ? "up" : "down"), text: `${pp >= 0 ? "▲" : "▼"} ${Math.abs(pp)} pp vs prior` })),
+        el("p", { class: "ratio-formula", hidden: true },
+          r.formula, el("br"), el("span", { class: "muted", text: `Tagged facts: ${r.inputs.map((i) => "F" + i.fact_id).join(", ")}` })));
+      const btn = li.querySelector(".ratio-row"), fx = li.querySelector(".ratio-formula");
+      btn.addEventListener("click", () => { fx.hidden = !fx.hidden; btn.setAttribute("aria-expanded", String(!fx.hidden)); });
+      rl.append(li);
+    }
+    $("#ratiosBlock").hidden = !(f.ratios || []).length;
+    if ((f.quick_asks || []).length) {
+      sug.append(el("p", { class: "qa-title", text: "Quick asks" }));
+      for (const g of f.quick_asks) {
+        sug.append(el("div", { class: "qa-group" }, el("span", { class: "qa-label", text: g.group }),
+          ...g.items.map((q) => el("button", { class: "chip", type: "button", text: q, onclick: () => ask(q) }))));
+      }
+    } else {
+      for (const s of f.suggestions || []) sug.append(el("button", { class: "chip", type: "button", text: s, onclick: () => ask(s) }));
+    }
+  }
+
+  // ------------------------------------------------------------------ fact explorer
+  const factsDlg = $("#factsDialog");
+  const fx = { rows: null };
+  $("#exploreBtn").addEventListener("click", async () => {
+    factsDlg.showModal();
+    $("#fxSearch").focus();
+    if (fx.rows) return renderFacts();
+    $("#fxCount").textContent = "Loading…";
+    try {
+      const r = await api("/api/facts");
+      fx.rows = r.facts;
+      const periods = [...new Set(fx.rows.map((x) => x.period))];
+      $("#fxPeriod").replaceChildren(el("option", { value: "", text: "All periods" }), ...periods.map((p) => el("option", { value: p, text: p })));
+      renderFacts();
+    } catch (err) { $("#fxCount").textContent = err.message || "Couldn't load the figures."; }
+  });
+  factsDlg.querySelector("[data-close-facts]").addEventListener("click", () => factsDlg.close());
+  // "input" for the search box only: a "change" event fires when the box loses focus, which would
+  // re-render the table between mousedown and click and swallow the click on an Ask button.
+  $("#fxSearch").addEventListener("input", () => renderFacts());
+  ["#fxPeriod", "#fxDims"].forEach((s) => $(s).addEventListener("change", () => renderFacts()));
+  function renderFacts() {
+    if (!fx.rows) return;
+    const q = $("#fxSearch").value.trim().toLowerCase(), per = $("#fxPeriod").value, dims = $("#fxDims").checked;
+    const words = q.split(/\s+/).filter(Boolean);
+    const hits = fx.rows.filter((x) => (!per || x.period === per) && (dims || !x.dims.length) &&
+      words.every((w) => (x.label + " " + x.concept + " " + x.dims.join(" ")).toLowerCase().includes(w)));
+    const shown = hits.slice(0, 250);
+    $("#fxBody").replaceChildren(...shown.map((x) => el("tr", {},
+      el("td", { title: x.concept }, x.label, x.ext ? el("span", { class: "fx-ext", text: "company-specific" }) : null),
+      el("td", { class: "num", title: x.exact, text: x.value }),
+      el("td", { text: x.period }),
+      el("td", { text: x.dims.join("; ") || "—" }),
+      el("td", {}, el("button", { class: "link-btn", type: "button", text: "Ask", onclick: () => askAbout(x) })))));
+    $("#fxCount").textContent = `${hits.length.toLocaleString("en-GB")} of ${fx.rows.length.toLocaleString("en-GB")} figures` +
+      (hits.length > shown.length ? ` · showing the first ${shown.length}, search to narrow down` : "") +
+      (!hits.length && (!dims || per) ? " · try ticking Include breakdowns or choosing All periods" : "");
+  }
+  function askAbout(x) {
+    factsDlg.close();
+    const when = x.period ? ` (${x.period.charAt(0).toLowerCase() + x.period.slice(1)})` : "";
+    const dim = x.dims.length ? ` for ${x.dims.join(", ")}` : "";
+    $("#question").value = `What was the value of ${x.label.toLowerCase()}${dim}${when}?`;
+    $("#question").focus();
   }
 
   // ------------------------------------------------------------------ ask
@@ -262,6 +348,7 @@
     body.append(el("div", { class: "card-foot" },
       el("span", { text: "Always check figures against the filing before relying on them." }),
       el("button", { class: "link-btn copy", type: "button", text: "Copy citation", onclick: (e) => copyCitation(r, e.target) })));
+    if (r.answer_id) body.append(voteRow(r.answer_id));
     return card;
   }
 
@@ -274,6 +361,42 @@
         el("td", { text: f.period }),
         el("td", { text: (f.dimensions || []).map((d) => `${d.axis}: ${d.member}`).join("; ") || "—" }),
         el("td", { class: "num", text: f.value.exact })))));
+  }
+
+  // Thumbs up/down. Only the answer id and the vote are sent; the server looks
+  // up what was answered, so a vote can't be attached to a made-up answer.
+  const SVGNS = "http://www.w3.org/2000/svg";
+  function thumb(down) {
+    const s = document.createElementNS(SVGNS, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(SVGNS, "path");
+    path.setAttribute("d", "M7 11v9H4v-9h3zm2 9h8.2a2 2 0 0 0 2-1.6l1.2-6A2 2 0 0 0 18.4 10H14V6a2 2 0 0 0-2-2l-3 7v9z");
+    s.append(path);
+    if (down) s.style.transform = "rotate(180deg)";
+    return s;
+  }
+  function voteRow(answerId) {
+    const note = el("span", { class: "vote-note", text: "Was this answer right?" });
+    const row = el("div", { class: "vote-row" }, note);
+    const buttons = ["up", "down"].map((v) => {
+      const b = el("button", { class: "vote-btn", type: "button", "aria-pressed": "false",
+        "aria-label": v === "up" ? "Yes, this answer was right" : "No, this answer was wrong",
+        title: v === "up" ? "Right" : "Wrong" });
+      b.append(thumb(v === "down"));
+      b.addEventListener("click", async () => {
+        buttons.forEach((x) => (x.disabled = true));
+        try {
+          await api("/api/feedback", { json: { answer_id: answerId, vote: v } });
+          buttons.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+          note.textContent = v === "up" ? "Thanks! Glad it helped." : "Thanks. This helps measure where it goes wrong.";
+        } catch (err) {
+          note.textContent = err.message || "Couldn't save your vote.";
+        } finally { buttons.forEach((x) => (x.disabled = false)); }
+      });
+      return b;
+    });
+    row.append(...buttons);
+    return row;
   }
 
   function copyCitation(r, btn) {

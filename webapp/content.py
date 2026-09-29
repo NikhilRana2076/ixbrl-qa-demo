@@ -24,6 +24,19 @@ GET_A_FILING = [
      "Drag the file into the upload box and ask your question in plain English."),
 ]
 
+FCA_NSM_URL = "https://data.fca.org.uk/#/nsm/nationalstoragemechanism"
+
+# Listed companies publish tagged annual reports (ESEF) on the FCA's register,
+# which is often the easier place to find a well-known company's accounts.
+GET_FROM_FCA = [
+    ("Open the FCA register",
+     "Go to the FCA's National Storage Mechanism (NSM). It's free and needs no account."),
+    ("Search and filter",
+     "Search the company's name and set the ESEF AFR type filter to Tagged."),
+    ("Download and upload",
+     "Download the annual financial report (an .xhtml file or a .zip report package) and upload it here."),
+]
+
 USE_CASES = [
     ("Check a business you deal with",
      "A supplier, customer, landlord, or a company you have an interview with. How big is it, is it profitable, how much cash does it hold?"),
@@ -87,7 +100,7 @@ def faq(public_limit: int, max_upload_mb: int, idle_minutes: int) -> list[tuple[
         ("Do I need to know accounting to use it?",
          "No. Ask in plain English, for example “How much cash did they have?”. The guide and glossary on this page explain the terms you'll see in answers, such as profit before tax or net assets."),
         ("Where do I get a filing, and does it cost anything?",
-         "Filings are free from Companies House. Search the company on Find and update company information, open Filing history, and click Download iXBRL next to a set of accounts. Accounts that only have a View PDF link were filed on paper or as a scan and can't be read here."),
+         "Filings are free from Companies House. Search the company on Find and update company information, open Filing history, and click Download iXBRL next to a set of accounts. Accounts that only have a View PDF link were filed on paper or as a scan and can't be read here. For companies listed on the London Stock Exchange, the FCA's National Storage Mechanism is often easier: search the company, set the ESEF AFR type filter to Tagged, and download the annual report."),
         ("Why did it say “Not in tagged data”?",
          "It usually means the figure isn't in the filing. Many small UK companies are allowed to leave the profit and loss account out of what they file, so there is no turnover or profit to find, only the balance sheet. It can also mean the question used different words from the filing. Try a term from the glossary, or try the other model. Saying it can't find something is intended: the system won't make up a number."),
         ("How do I know an answer is right?",
@@ -99,7 +112,7 @@ def faq(public_limit: int, max_upload_mb: int, idle_minutes: int) -> list[tuple[
         ("How do I get more questions or a Claude access code?",
          "Use the contact links at the bottom of the page and say briefly what you'd like to test. Access codes are free."),
         ("What happens to the file I upload?",
-         f"The file is deleted as soon as it has been read. The figures extracted from it are kept only for your visit and deleted when you clear the filing or after {idle_minutes} minutes without activity. Your question and the matching figures are sent to OpenAI or Anthropic to write the answer. Only upload public filings, never anything confidential."),
+         f"The file is deleted as soon as it has been read. The figures extracted from it are kept only for your visit and deleted when you clear the filing or after {idle_minutes} minutes without activity. Your question and the matching figures are sent to OpenAI or Anthropic to write the answer. If you use the thumbs up or down on an answer, the question, the answer and your vote are logged so I can measure accuracy. Nothing identifies you. Only upload public filings, never anything confidential."),
         ("Which files work?",
          f"UK annual reports in iXBRL format: .xhtml or .html, or a report-package .zip, up to {max_upload_mb} MB. Both UK GAAP (FRS 102) and IFRS accounts work. Scanned or PDF-only accounts don't. Very large listed-company reports can exceed the size limit."),
         ("Is this financial advice?",

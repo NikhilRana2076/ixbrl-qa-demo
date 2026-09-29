@@ -10,6 +10,7 @@ from __future__ import annotations
 import sqlite3
 
 from .formatting import format_value, label, nice_date, period_text
+from .ratios import build_ratios
 
 ENTITY_NAME_CONCEPTS = (
     "EntityCurrentLegalOrRegisteredName", "NameOfReportingEntityOrOtherMeansOfIdentification",
@@ -54,6 +55,55 @@ def _pick_metric(conn, names: list[str]) -> tuple[dict | None, dict | None]:
         prior = next((r for r in rows if (r.get("period_end") or r.get("period_instant") or "") < latest_end), None)
         return current, prior
     return None, None
+
+
+def _has(conn, table: str, patterns: list[str]) -> bool:
+    col = "local_name"
+    extra = " AND COALESCE(has_dimension,0)=0 AND value IS NOT NULL" if table == "facts" else ""
+    for pat in patterns:
+        if conn.execute(f"SELECT 1 FROM {table} WHERE {col} LIKE ?{extra} LIMIT 1", (pat,)).fetchone():
+            return True
+    return False
+
+
+def build_quick_asks(conn, metrics: list[dict], ratios: list[dict]) -> list[dict]:
+    """One-tap questions, grouped the way an analyst reads a report. Only questions the
+    filing's own tags can answer are offered."""
+    have = {m["label"] for m in metrics}
+    rk = {r["key"] for r in ratios}
+    perf, bs, sh, disc = [], [], [], []
+    if "Revenue" in have:
+        perf.append("What was revenue for the year?")
+        if "growth" in rk:
+            perf.append("By how much did revenue change compared with the prior year?")
+    if "op_margin" in rk:
+        perf.append("What was the operating margin?")
+    if "Profit before tax" in have:
+        perf.append("What was profit before tax?")
+    if "Cash" in have:
+        bs.append("How much cash did the company hold at the year end?")
+    if _has(conn, "facts", ["Borrowings", "CurrentBorrowings%", "NoncurrentBorrowings", "LongtermBorrowings",
+                                 "ShorttermBorrowings", "BankBorrowings%"]):
+        bs.append("How much does the company owe in borrowings?")
+    if "Net assets / equity" in have:
+        bs.append("What were net assets at the balance sheet date?")
+    if "Basic EPS" in have:
+        sh.append("What was basic earnings per share?")
+    if _has(conn, "facts", ["%Dividend%PerShare%"]):
+        sh.append("What dividend per share did the company declare?")
+    if "Average employees" in have:
+        sh.append("How many people did the company employ on average?")
+    for pats, q in [
+        (["%GoingConcern%"], "Summarise the going concern assessment."),
+        (["%AccountingPolicyForRevenue%", "%RevenueRecognition%"], "How does the company recognise revenue?"),
+        (["%FinancialRiskManagement%", "%RiskManagement%"], "How does the company manage financial risk?"),
+        (["%OperatingSegment%", "%Segment%"], "How is the business split into segments?"),
+        (["%Impairment%"], "Summarise the approach to impairment."),
+    ]:
+        if len(disc) < 3 and _has(conn, "narratives", pats):
+            disc.append(q)
+    groups = [("Performance", perf), ("Balance sheet", bs), ("Shareholders & people", sh), ("Disclosures", disc)]
+    return [{"group": g, "items": items[:3]} for g, items in groups if items]
 
 
 def build_overview(conn: sqlite3.Connection, filename: str) -> dict:
@@ -147,6 +197,7 @@ def build_overview(conn: sqlite3.Connection, filename: str) -> dict:
         suggestions.append(f"Summarise the disclosure on {topics[0]['label'].lower()}.")
 
     n = stats["n_facts"] or 0
+    ratios = build_ratios(conn)
     return {
         "filename": filename,
         "entity": name or filename,
@@ -160,6 +211,8 @@ def build_overview(conn: sqlite3.Connection, filename: str) -> dict:
         "pct_dimensional": round(100 * (stats["n_dim"] or 0) / n) if n else 0,
         "n_extension": stats["n_ext"] or 0,
         "metrics": metrics,
+        "ratios": ratios,
+        "quick_asks": build_quick_asks(conn, metrics, ratios),
         "warnings": warnings,
         "figures": top,
         "topics": topics,

@@ -52,8 +52,8 @@ class Settings:
     secret_key: str = ""
     public_model: str = "gpt-5.6-terra"
     locked_model: str = "claude-sonnet-4-6"
-    public_questions_per_session: int = 10
-    public_questions_per_ip_per_day: int = 20
+    public_questions_per_session: int = 25
+    public_questions_per_ip_per_day: int = 50
     global_questions_per_day: int = 300
     global_spend_usd_per_day: float = 2.0
     access_codes: dict = field(default_factory=dict)
@@ -81,8 +81,8 @@ class Settings:
             secret_key=e("SECRET_KEY", ""),
             public_model=e("PUBLIC_MODEL", "gpt-5.6-terra"),
             locked_model=e("LOCKED_MODEL", "claude-sonnet-4-6"),
-            public_questions_per_session=_int("PUBLIC_QUESTIONS_PER_SESSION", 10),
-            public_questions_per_ip_per_day=_int("PUBLIC_QUESTIONS_PER_IP_PER_DAY", 20),
+            public_questions_per_session=_int("PUBLIC_QUESTIONS_PER_SESSION", 25),
+            public_questions_per_ip_per_day=_int("PUBLIC_QUESTIONS_PER_IP_PER_DAY", 50),
             global_questions_per_day=_int("GLOBAL_QUESTIONS_PER_DAY", 300),
             global_spend_usd_per_day=_float("GLOBAL_SPEND_USD_PER_DAY", 2.0),
             access_codes=parse_access_codes(e("ACCESS_CODES", "")),

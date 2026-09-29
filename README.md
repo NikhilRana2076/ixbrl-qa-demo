@@ -29,6 +29,7 @@ You don't need any accounting knowledge. People use it to:
    - Open the **Filing history** tab
    - Next to a set of accounts, click **Download iXBRL**. You'll get an `.xhtml` file.
    - If there's only a *View PDF* link, those accounts weren't filed digitally and won't work.
+   - **Listed company?** Big names often only have a PDF on Companies House. Open the FCA's [National Storage Mechanism](https://data.fca.org.uk/#/nsm/nationalstoragemechanism), search the company, set **ESEF AFR type** to **Tagged**, and download the annual report.
 2. **Upload it** on the site (drag and drop, up to 25 MB).
 3. **Ask a question** in everyday words, for example:
    - *What was turnover for the year?*
@@ -38,6 +39,15 @@ You don't need any accounting knowledge. People use it to:
    - *Summarise the going concern disclosure.*
 
 > **Tip:** many small companies file only a balance sheet, without a profit and loss account. If TagTrace says *"Not in tagged data"* for turnover or profit, the figure usually isn't in that filing. Try cash or net assets instead.
+
+## What you get the moment a filing loads
+
+No AI involved, so these don't use any questions:
+
+- **Headline figures** with the change on the prior year
+- **Key ratios** calculated from the tagged figures: revenue growth, gross, operating and net margin, return on equity, cash conversion, current ratio and net cash or debt. Tap a ratio to see the exact figures and tags it came from.
+- **Fact explorer**: search every tagged number in the filing, filter by period or breakdown, and send any figure to the AI as a question
+- **Quick asks**: one-tap questions grouped as Performance, Balance sheet, Shareholders and Disclosures, offered only when the filing tags the data to answer them
 
 ## Reading an answer
 
@@ -50,6 +60,8 @@ Every answer is a card that shows the value, the tag it came from, the period (e
 | **Quote found in filing** | A narrative answer whose quote appears word for word in the filing |
 | **Not verified** | The AI's answer couldn't be confirmed. Treat it with care. |
 | **Not in tagged data** | Nothing in the filing answers it, so no number is made up |
+
+Use the thumbs up or down under an answer to say whether it was right. Votes are logged, with the question and answer, to measure real-world accuracy.
 
 **What it can't guarantee:** the server can confirm that a number is really in the filing, but not that it's the *right* one for your question. The AI could still pick last year's figure or a breakdown instead of the total. Always check the period and breakdown on the card.
 
@@ -108,7 +120,7 @@ On a 102-question benchmark across 12 UK filings (8 FTSE 350 under IFRS, 4 priva
 
 - Uploaded files are deleted as soon as they're parsed. Extracted facts are deleted when you clear the filing or after 30 minutes of inactivity.
 - Your question and the retrieved facts are sent to OpenAI (public model) or Anthropic (Claude) to write the answer. Only upload public filings.
-- The public model is free for 10 questions per visit. Claude needs an access code, which you can request through the contact links on the site.
+- The public model is free for 25 questions per visit. Claude needs an access code, which you can request through the contact links on the site.
 - This is a research demonstration, **not financial advice**.
 
 ## Running it yourself
@@ -129,7 +141,7 @@ Open http://127.0.0.1:5000. To preview the interface without any API keys (canne
 
 ```bash
 python tests/preview_server.py     # http://127.0.0.1:5055
-python -m pytest -q tests          # 17 tests, no API calls
+python -m pytest -q tests          # 20 tests, no API calls
 ```
 
 Deployment notes (Render, access codes, spend caps) are in [DEPLOY.md](DEPLOY.md).
@@ -146,6 +158,6 @@ tests/      unit tests with stubbed models, plus a smoke test against the real p
 
 **Nikhil Rana**: [Portfolio](https://nikhilrana.com.np)
 
-iXBRL and XBRL are trademarks of XBRL International Inc. TagTrace is an independent project, not affiliated with XBRL International, Companies House, OpenAI or Anthropic. Filings on the Companies House register are Crown copyright, used under the Open Government Licence v3.0.
+iXBRL and XBRL are trademarks of XBRL International Inc. TagTrace is an independent project, not affiliated with XBRL International, Companies House, the FCA, OpenAI or Anthropic. Filings on the Companies House register are Crown copyright, used under the Open Government Licence v3.0.
 
 © 2026 Nikhil Rana. All rights reserved.

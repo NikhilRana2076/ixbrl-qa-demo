@@ -17,6 +17,7 @@ import shutil
 import threading
 import time
 import unicodedata
+from collections import OrderedDict
 from contextlib import closing
 from pathlib import Path
 
@@ -25,11 +26,17 @@ from markupsafe import Markup
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+try:                                   # gzip/brotli for HTML, CSS and JS
+    from flask_compress import Compress
+except ImportError:                    # optional: the app still runs without it
+    Compress = None
+
 from . import content, ingest
 from .answering import answer_question
 from .config import Settings, hash_code
 from .ingest import ALLOWED_EXT, UploadError, ingest_path, ingest_upload
 from .llm import PROVIDERS, make_client
+from .formatting import dimensions, format_value, label, period_text
 from .overview import build_overview
 from .security import (SECURITY_HEADERS, RateLimiter, UsageLedger, client_ip,
                        same_origin_ok)
@@ -56,7 +63,13 @@ def create_app(settings: Settings | None = None) -> Flask:
         JSON_SORT_KEYS=False,
     )
 
+    if Compress is not None:
+        Compress(app)
     registry = FilingRegistry(s.session_idle_minutes, s.max_live_sessions)
+    # Recent answers, so a thumbs-up/down vote can only refer to an answer this
+    # session actually received (the client never sends the answer content).
+    answers: "OrderedDict[str, dict]" = OrderedDict()
+    answers_lock = threading.Lock()
     registry.purge_all()                         # nothing survives a restart
     ledger = UsageLedger(s)
     limiter = RateLimiter()
@@ -154,6 +167,30 @@ def create_app(settings: Settings | None = None) -> Flask:
         item = registry.get(session.get("sid"))
         return jsonify({"quota": quota(), "filing": item.overview if item else None,
                         "samples": samples()})
+
+    @app.get("/api/facts")
+    def facts():
+        """Every numeric fact in the visitor's filing, for the fact explorer. No LLM involved."""
+        item = registry.get(session.get("sid"))
+        if not item:
+            return err("no_filing", "Load a filing first.")
+        if not limiter.allow(f"facts:{client_ip()}", limit=20, window=60):
+            return err("rate_limited", "Please slow down.", 429)
+        rows = []
+        with closing(item.connect()) as conn:
+            for r in conn.execute("""
+                    SELECT * FROM facts WHERE COALESCE(is_nil,0)=0 AND value IS NOT NULL
+                    ORDER BY COALESCE(period_end, period_instant) DESC, has_dimension, local_name
+                    LIMIT 8000"""):
+                f = dict(r)
+                v = format_value(f["value"], f, per_share="PerShare" in (f.get("local_name") or ""))
+                rows.append({
+                    "id": f["fact_id"], "label": label(f.get("local_name")), "concept": f.get("concept"),
+                    "value": v["display"], "exact": v["exact"], "num": f["value"],
+                    "period": period_text(f), "dims": [f"{d['axis']}: {d['member']}" for d in dimensions(f)],
+                    "ext": bool(f.get("is_extension")),
+                })
+        return jsonify({"facts": rows, "truncated": len(rows) >= 8000})
 
     def _finish_load(workdir: Path, db_path: Path, display: str):
         item = FilingSession(sid=sid(), workdir=workdir, db_path=db_path, filename=display)
@@ -276,9 +313,41 @@ def create_app(settings: Settings | None = None) -> Flask:
             "elapsed_s": round(time.time() - t0, 1),
             "quota": quota(),
         })
-        log.info("ask tier=%s kind=%s status=%s cost=%.5f", tier, result.get("kind"),
+        answer_id = secrets.token_urlsafe(9)
+        result["answer_id"] = answer_id
+        fact = result.get("fact") or {}
+        shown = fact.get("value") or result.get("value")
+        shown = shown.get("display") if isinstance(shown, dict) else shown
+        with answers_lock:
+            answers[answer_id] = {
+                "sid": sid(), "tier": tier, "kind": result.get("kind"),
+                "level": result.get("status", {}).get("level"),
+                "filing": item.filename[:80], "question": question[:200],
+                "concept": fact.get("concept"), "value": shown,
+                "vote": None,
+            }
+            while len(answers) > 2000:
+                answers.popitem(last=False)
+        log.info("ask id=%s tier=%s kind=%s status=%s cost=%.5f", answer_id, tier, result.get("kind"),
                  result.get("status", {}).get("level"), client.spent_usd)
         return jsonify(result)
+
+    @app.post("/api/feedback")
+    def feedback():
+        data = request.get_json(silent=True) or {}
+        answer_id, vote = str(data.get("answer_id", ""))[:40], data.get("vote")
+        if vote not in ("up", "down"):
+            return err("bad_vote", "Vote must be up or down.")
+        with answers_lock:
+            a = answers.get(answer_id)
+            if not a or a["sid"] != session.get("sid"):
+                return err("unknown_answer", "That answer can no longer be rated.", 404)
+            changed, a["vote"] = a["vote"] != vote, vote
+            record = {k: v for k, v in a.items() if k != "sid"}
+        if changed:
+            # One JSON line per vote: grep "feedback " in the Render logs to collect them.
+            log.info("feedback %s", json.dumps({"answer_id": answer_id, **record}, ensure_ascii=False))
+        return jsonify({"ok": True, "vote": vote})
 
     return app
 

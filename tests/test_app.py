@@ -169,3 +169,42 @@ def test_global_spend_cap(client, script, app):
     assert ask(client).status_code == 200                      # 2 calls x 0.6 x 2 = 2.4 USD (> 2.0 cap)
     r = ask(client)
     assert r.status_code == 429 and r.json["error"] == "service_paused"
+
+
+def test_feedback_vote_is_tied_to_session(app, client, script, caplog):
+    upload(client)
+    script(["Revenue"], {"answer_type": "fact", "fact_ids": ["F1"], "operation": "none",
+                         "summary": "Revenue was £4.8bn."})
+    j = ask(client).json
+    aid = j["answer_id"]
+    H = {"X-Requested-With": "fetch"}
+    assert client.post("/api/feedback", json={"answer_id": aid, "vote": "sideways"}, headers=H).status_code == 400
+    with caplog.at_level("INFO", logger="webapp"):
+        r = client.post("/api/feedback", json={"answer_id": aid, "vote": "down"}, headers=H)
+    assert r.status_code == 200 and r.json["vote"] == "down"
+    line = next(m for m in caplog.messages if m.startswith("feedback "))
+    assert '"vote": "down"' in line and "revenue" in line.lower() and "sid" not in line
+    # another visitor cannot vote on this answer
+    other = app.test_client()
+    assert other.post("/api/feedback", json={"answer_id": aid, "vote": "up"}, headers=H).status_code == 404
+    assert client.post("/api/feedback", json={"answer_id": "nope", "vote": "up"}, headers=H).status_code == 404
+
+
+def test_seo_routes(client):
+    assert b"Sitemap:" in client.get("/robots.txt").data
+    assert b"<loc>" in client.get("/sitemap.xml").data
+    page = client.get("/").data.decode()
+    assert 'application/ld+json' in page and 'data-q="' in page and 'og:image' in page
+
+
+def test_ratios_quick_asks_and_fact_explorer(client):
+    H = {"X-Requested-With": "fetch"}
+    assert client.get("/api/facts", headers=H).json["error"] == "no_filing"
+    ov = upload(client).json["filing"]
+    keys = {r["key"] for r in ov["ratios"]}
+    assert "growth" in keys and "net_margin" in keys
+    growth = next(r for r in ov["ratios"] if r["key"] == "growth")
+    assert growth["display"] == "6.2%" and len(growth["inputs"]) == 2      # 4,812 vs 4,530
+    assert any(g["group"] == "Performance" for g in ov["quick_asks"])
+    facts = client.get("/api/facts", headers=H).json["facts"]
+    assert facts and {"label", "value", "period", "dims", "concept"} <= set(facts[0])
