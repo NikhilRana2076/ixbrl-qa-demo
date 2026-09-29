@@ -108,7 +108,10 @@ def faq(public_limit: int, max_upload_mb: int, idle_minutes: int) -> list[tuple[
         ("Can it still be wrong?",
          "Yes. The server can confirm that a number really is in the filing, but not that it's the right one for your question. The AI can still pick last year's figure, or a breakdown instead of the total. That's why the period and dimension are shown on every card. Check them, and check anything important against the filing itself."),
         ("What's the difference between the two models?",
-         f"GPT-5.6 Terra is free for {public_limit} questions per visit. Claude Sonnet 4.6 needs an access code. In the 102-question benchmark behind this demo, both models were given the same evidence. Claude was wrong on 5.1% of the questions it answered and GPT-5.6 Terra on 18.2%."),
+         f"GPT-5.6 Terra is free for {public_limit} questions per visit. Claude Sonnet 4.6 needs an access code. "
+         "In the 102-question benchmark behind this demo, both models were given the same evidence and made the same "
+         "number of mistakes (4 each). The difference was caution: GPT-5.6 Terra declined 12 questions and Claude 4, "
+         "so Claude answered 92.2% correctly and GPT-5.6 Terra 84.3%."),
         ("How do I get more questions or a Claude access code?",
          "Use the contact links at the bottom of the page and say briefly what you'd like to test. Access codes are free."),
         ("What happens to the file I upload?",

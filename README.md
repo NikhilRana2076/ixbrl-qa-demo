@@ -105,13 +105,13 @@ On a 102-question benchmark across 12 UK filings (8 FTSE 350 under IFRS, 4 priva
 
 | Approach | Correct | Wrong | No answer |
 |---|---|---|---|
-| Claude · reads report text | 44.1% | 4 | 53 |
-| Claude · tagged figures | **92.2%** | 5 | 3 |
-| GPT-5.6 Terra · reads report text | 41.2% | 5 | 55 |
-| GPT-5.6 Terra · tagged figures | 79.4% | 18 | 3 |
+| Claude · reads report text | 45.1% | 3 | 53 |
+| Claude · tagged figures | **92.2%** | 4 | 4 |
+| GPT-5.6 Terra · reads report text | 43.1% | 3 | 55 |
+| GPT-5.6 Terra · tagged figures | 84.3% | 4 | 12 |
 
-- Giving the model the tagged figures fixed coverage: Claude improved by 48 percentage points (95% CI 38.2–57.8).
-- With the same evidence, GPT-5.6 Terra was wrong on 18.2% of the questions it answered, against 5.1% for Claude.
+- Giving the model the tagged figures fixed coverage: Claude improved from 45.1% to 92.2%, +47.1 percentage points (95% CI 37.3–56.9). Most of the gain came from fewer unanswered questions (52% → 3.9%) rather than fewer mistakes (6.1% → 4.1% of attempted answers).
+- With the same evidence, both models made 4 mistakes (4.1% vs 4.4% of attempted answers). GPT-5.6 Terra declined more questions (12 vs 4), so it scored 84.3% against Claude's 92.2% (difference 7.8 pp, 95% CI 2.9–12.7).
 - Self-consistency sampling caught none of the wrong answers, because the errors were systematic. That's why TagTrace checks answers against the filing instead.
 
 *Limitations:* a small corpus and a small number of consistency samples, and results may not carry over to every filing. The live site uses a structured-output variant of the method with server-side checks, so it isn't exactly the benchmarked setup.

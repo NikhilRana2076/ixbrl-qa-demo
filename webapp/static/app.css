@@ -127,7 +127,14 @@ code { font-size: .9em; background: var(--line-2); padding: 1px 5px; border-radi
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font: 13px var(--sans); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; color: var(--ink-2); text-align: left; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
-.suggestions { margin-top: 10px; }
+.suggestions { margin-top: 8px; padding: 12px 14px; background: #fbfaf7; border: 1px solid var(--line-2); border-radius: var(--radius); }
+.ask-tools { display: flex; justify-content: flex-end; margin-top: 8px; }
+.feed-group { display: flex; flex-direction: column; gap: 16px; }
+.feed-group + .feed-group { margin-top: 14px; }
+.feed-divider { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--ink-2); padding: 4px 0 6px; border-bottom: 2px solid var(--brass); }
+.feed-divider .fd-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.feed-divider strong { font-family: var(--serif); font-size: 16px; color: var(--ink); }
+.feed-divider .fd-meta { color: var(--muted); font-size: 12.5px; }
 .form-error { color: var(--danger); font-size: 13px; margin: 10px 0 0; }
 
 /* ---------- feed & cards ---------- */

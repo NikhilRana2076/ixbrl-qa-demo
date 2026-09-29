@@ -144,6 +144,8 @@
     $("#question").disabled = !f; $("#askBtn").disabled = !f;
     $("#question").placeholder = f ? "Ask about this filing, e.g. “What was profit before tax?”" : "Load a filing, then ask e.g. “What was revenue for the year?”";
     const sug = $("#suggestions"); sug.replaceChildren();
+    setSuggestions(false);
+    $("#sugToggle").hidden = !f;
     if (!f) return;
     $("#ovEntity").textContent = f.entity;
     $("#ovFile").textContent = f.entity !== f.filename ? f.filename : "";
@@ -184,12 +186,21 @@
       sug.append(el("p", { class: "qa-title", text: "Quick asks" }));
       for (const g of f.quick_asks) {
         sug.append(el("div", { class: "qa-group" }, el("span", { class: "qa-label", text: g.group }),
-          ...g.items.map((q) => el("button", { class: "chip", type: "button", text: q, onclick: () => ask(q) }))));
+          ...g.items.map((q) => el("button", { class: "chip", type: "button", text: q, onclick: () => { setSuggestions(false); ask(q); } }))));
       }
     } else {
-      for (const s of f.suggestions || []) sug.append(el("button", { class: "chip", type: "button", text: s, onclick: () => ask(s) }));
+      for (const s of f.suggestions || []) sug.append(el("button", { class: "chip", type: "button", text: s, onclick: () => { setSuggestions(false); ask(s); } }));
     }
   }
+
+  // Suggested questions stay folded away until asked for, so they never push answers down.
+  const sugBox = $("#suggestions"), sugToggle = $("#sugToggle");
+  function setSuggestions(open) {
+    sugBox.hidden = !open;
+    sugToggle.setAttribute("aria-expanded", String(open));
+    sugToggle.textContent = open ? "Hide suggested questions" : "Need a starting point? Show suggested questions";
+  }
+  sugToggle.addEventListener("click", () => setSuggestions(sugBox.hidden));
 
   // ------------------------------------------------------------------ fact explorer
   const factsDlg = $("#factsDialog");
@@ -247,10 +258,11 @@
     if (!state.filing) return;
     $("#askError").hidden = true;
     const feed = $("#feed"); feed.querySelector(".empty")?.remove();
+    const group = currentGroup(feed);
     const pending = el("article", { class: "card pending" },
       el("header", { class: "card-head" }, el("p", { class: "card-q", text: q }), el("p", { class: "card-meta", text: modelLabel() })),
       el("div", { class: "card-body" }, el("div", { class: "spinner" }), "Retrieving tagged facts and checking the answer…"));
-    feed.prepend(pending);
+    group.header.after(pending);
     state.busy = true; $("#askBtn").disabled = true; $("#question").value = "";
     try {
       const r = await api("/api/ask", { json: { question: q, model: state.model } });
@@ -261,8 +273,23 @@
       if (["session_quota", "ip_quota", "code_exhausted", "service_paused"].includes(err.error)) showQuotaWall(err.error);
       else if (err.error === "locked") openUnlock();
       else { $("#askError").textContent = err.message || "Something went wrong."; $("#askError").hidden = false; $("#question").value = q; }
+      if (group.node.childElementCount === 1) { group.node.remove(); state.group = null; }
       if (!feed.childElementCount) feed.append(el("div", { class: "empty" }, el("p", { class: "empty-title", text: "Ask a question to see an evidence card." })));
     } finally { state.busy = false; $("#askBtn").disabled = !state.filing; }
+  }
+  // Answers are grouped under the filing they came from, newest group first, so
+  // switching filings never leaves it unclear which company an answer is about.
+  function currentGroup(feed) {
+    const f = state.filing;
+    if (state.group && state.group.filing === f) return state.group;
+    const header = el("div", { class: "feed-divider" },
+      el("span", { class: "fd-label", text: "Answers about" }),
+      el("strong", { text: f.entity }),
+      f.period_end ? el("span", { class: "fd-meta", text: `· period to ${f.period_end}` }) : null);
+    const node = el("section", { class: "feed-group", "aria-label": `Answers about ${f.entity}` }, header);
+    feed.prepend(node);
+    state.group = { filing: f, node, header };
+    return state.group;
   }
   const modelLabel = () => (state.model === "locked" ? "Claude Sonnet 4.6" : "GPT-5.6 Terra");
 

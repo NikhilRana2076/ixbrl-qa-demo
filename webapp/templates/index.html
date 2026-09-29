@@ -54,9 +54,9 @@
         <a class="btn ghost-light" href="#guide">New to company accounts? Start here</a>
       </div>
       <dl class="hero-stats">
-        <div><dt>Correct answers</dt><dd>44% <span>→</span> 92%</dd><dd class="stat-note">AI reading the report text vs TagTrace's tag lookup, on a 102-question benchmark</dd></div>
-        <div><dt>Unanswered</dt><dd>52% <span>→</span> 3%</dd><dd class="stat-note">Given the right tagged figures, the AI rarely has to give up</dd></div>
-        <div><dt>Wrong when answering</dt><dd>5.1% <span class="vs">vs</span> 18.2%</dd><dd class="stat-note">Claude vs GPT-5.6 Terra, given exactly the same evidence</dd></div>
+        <div><dt>Correct answers</dt><dd>45% <span>→</span> 92%</dd><dd class="stat-note">AI reading the report text vs TagTrace's tag lookup, on a 102-question benchmark</dd></div>
+        <div><dt>Unanswered</dt><dd>52% <span>→</span> 4%</dd><dd class="stat-note">Given the right tagged figures, the AI rarely has to give up</dd></div>
+        <div><dt>Correct with tagged figures</dt><dd>92.2% <span class="vs">vs</span> 84.3%</dd><dd class="stat-note">Claude vs GPT-5.6 Terra on the same evidence. Both made 4 mistakes; GPT-5.6 Terra declined more questions</dd></div>
       </dl>
     </div>
   </section>
@@ -136,7 +136,10 @@
         <textarea id="question" rows="2" maxlength="400" placeholder="Load a filing, then ask e.g. “What was revenue for the year?”" disabled></textarea>
         <button id="askBtn" class="btn primary" type="submit" disabled>Ask</button>
       </form>
-      <div id="suggestions" class="chips suggestions"></div>
+      <div class="ask-tools">
+        <button id="sugToggle" class="link-btn" type="button" aria-expanded="false" aria-controls="suggestions" hidden>Need a starting point? Show suggested questions</button>
+      </div>
+      <div id="suggestions" class="chips suggestions" hidden></div>
       <p id="askError" class="form-error" role="alert" hidden></p>
 
       <div id="feed" class="feed" aria-live="polite">
@@ -260,16 +263,17 @@
           <caption>102-question benchmark · 12 UK filings (8 FTSE 350 under IFRS, 4 private companies under FRS 102)</caption>
           <thead><tr><th>Approach</th><th>Correct</th><th>Wrong</th><th>No answer</th></tr></thead>
           <tbody>
-            <tr><td>Claude · reads report text</td><td>44.1%</td><td>4</td><td>53</td></tr>
-            <tr><td>Claude · tagged figures</td><td class="strong">92.2%</td><td>5</td><td>3</td></tr>
-            <tr><td>GPT-5.6 Terra · reads report text</td><td>41.2%</td><td>5</td><td>55</td></tr>
-            <tr><td>GPT-5.6 Terra · tagged figures</td><td>79.4%</td><td>18</td><td>3</td></tr>
+            <tr><td>Claude · reads report text</td><td>45.1%</td><td>3</td><td>53</td></tr>
+            <tr><td>Claude · tagged figures</td><td class="strong">92.2%</td><td>4</td><td>4</td></tr>
+            <tr><td>GPT-5.6 Terra · reads report text</td><td>43.1%</td><td>3</td><td>55</td></tr>
+            <tr><td>GPT-5.6 Terra · tagged figures</td><td>84.3%</td><td>4</td><td>12</td></tr>
           </tbody>
         </table>
         <div class="findings">
-          <p><strong>Giving the AI the right figures fixes coverage.</strong> Annual reports are too long for an AI to read in one go, so reading the text meant cutting it short, and the answer was often in the part that was cut. With the tagged figures, both models almost stopped giving up. Claude improved by 48 percentage points (95% CI 38.2–57.8).</p>
-          <p><strong>The model still matters.</strong> With exactly the same evidence, GPT-5.6 Terra was wrong on 18.2% of the questions it answered and Claude on 5.1%.</p>
-          <p><strong>Asking the same question several times didn't catch the mistakes.</strong> The wrong answers were consistent, so repeating the question gave the same wrong number. That's why TagTrace checks answers against the filing instead.</p>
+          <p><strong>Giving the AI the right figures fixes coverage.</strong> Annual reports are too long for an AI to read in one go, so reading the text meant cutting it short, and the answer was often in the part that was cut. With the tagged figures, Claude's correct answers rose from 45.1% to 92.2%, up 47.1 percentage points (95% CI 37.3–56.9).</p>
+          <p><strong>Most of the gain is coverage, not fewer mistakes.</strong> Unanswered questions fell from 52% to 3.9%. Mistakes were rare either way: 3 of the 49 questions Claude attempted without the tags, and 4 of the 98 it attempted with them.</p>
+          <p><strong>The two models differed in caution, not accuracy.</strong> With the same evidence, both made 4 mistakes. GPT-5.6 Terra declined 12 questions and Claude 4, giving 84.3% against 92.2% correct.</p>
+          <p><strong>Asking the same question several times didn't catch the mistakes.</strong> It caught none of the 3 errors for either model, because the wrong answers were consistent. That's why TagTrace checks answers against the filing instead.</p>
           <p class="muted small">Limitations: a small set of filings, three repeats per consistency check, and results that may not carry over to every filing. This site uses a version of the method with structured answers and server-side checks, so it isn't exactly the benchmarked setup.</p>
         </div>
       </div>
@@ -317,7 +321,7 @@
 <dialog id="unlockDialog" class="dialog">
   <form method="dialog" id="unlockForm">
     <h2>Unlock Claude Sonnet 4.6</h2>
-    <p class="muted">Claude had the lowest error rate in the study, so access is by code. Enter the code you were sent.</p>
+    <p class="muted">Claude answered the most questions correctly in the study, so access is by code. Enter the code you were sent.</p>
     <label for="codeInput" class="field-label">Access code</label>
     <input id="codeInput" class="input" autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX" maxlength="64">
     <p id="codeError" class="form-error" role="alert" hidden></p>
