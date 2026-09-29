@@ -116,6 +116,17 @@ On a 102-question benchmark across 12 UK filings (8 FTSE 350 under IFRS, 4 priva
 
 *Limitations:* a small corpus and a small number of consistency samples, and results may not carry over to every filing. The live site uses a structured-output variant of the method with server-side checks, so it isn't exactly the benchmarked setup.
 
+## Evaluation
+
+The deployed system is continuously evaluated against the 102-question benchmark on all 12 companies:
+
+- **Retrieval:** 93.14% recall at top-15 results; 45.1% ranked at position #1
+- **Answer accuracy:** 66% overall (70% extraction, 65% computation, 42% disclosure)
+- **Error rate:** 6.9% when the model answers (prefers abstention over hallucination on 25% of questions)
+- **Cost:** $0.43 per full evaluation cycle
+
+See [eval/README.md](eval/README.md) for methodology, baseline thresholds and how to run evaluations locally.
+
 ## Privacy and limits
 
 - Uploaded files are deleted as soon as they're parsed. Extracted facts are deleted when you clear the filing or after 30 minutes of inactivity.
