@@ -129,11 +129,11 @@ def ingest_path(raw: Path, workdir: Path, settings, display_name: str) -> tuple[
     except UploadError:
         raise
     except (zipfile.BadZipFile, UnicodeDecodeError):
-        raise UploadError("The file could not be read. Is it a complete iXBRL filing?")
+        raise UploadError("The file could not be read. Is it a complete iXBRL filing?") from None
     except Exception as exc:                                  # noqa: BLE001
         # Log the detail server-side; show the visitor a generic message.
         import logging
         logging.getLogger(__name__).exception("parse failure: %s", exc)
-        raise UploadError("This filing could not be parsed. Try the original .xhtml or the report package .zip.")
+        raise UploadError("This filing could not be parsed. Try the original .xhtml or the report package .zip.") from exc
     finally:
         shutil.rmtree(incoming, ignore_errors=True)   # never keep the raw upload

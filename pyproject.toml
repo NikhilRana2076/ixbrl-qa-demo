@@ -1,0 +1,28 @@
+# Tool configuration only. Runtime dependencies stay in requirements-web.txt,
+# which Render installs; dev tools are in requirements-dev.txt.
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["tests/stubs"]
+
+[tool.ruff.lint]
+# pycodestyle errors, pyflakes, import order, bugbear
+select = ["E", "F", "I", "B"]
+# E501: long lines are left to judgement for now; E701/E702: compact one-line
+# statements are used deliberately in a few places.
+ignore = ["E501", "E701", "E702"]
+
+[tool.ruff.lint.per-file-ignores]
+# These modules must set sys.path / load .env before importing the app.
+"wsgi.py" = ["E402"]
+"tests/*" = ["E402"]
+"tests_integration/*" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "webapp"]
+
+[tool.pytest.ini_options]
+# `tests` uses stub packages and `tests_integration` uses the real src/, so they
+# must run as separate pytest processes: see `make test`.
+testpaths = ["tests"]

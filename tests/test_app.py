@@ -1,4 +1,3 @@
-import io
 import zipfile
 
 from conftest import ORIGIN, ask, upload
@@ -20,6 +19,7 @@ def test_cross_site_post_blocked(client):
 
 def test_production_requires_secret(monkeypatch):
     import pytest
+
     from webapp import create_app
     from webapp.config import Settings
     with pytest.raises(RuntimeError):

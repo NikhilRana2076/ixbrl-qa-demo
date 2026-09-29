@@ -30,9 +30,7 @@ import json
 import re
 import sqlite3
 
-from .formatting import (dimensions, format_ratio, format_value, label,
-                         period_text, taxonomy_badge)
-from .ingest import COMPANY_ID
+from .formatting import dimensions, format_ratio, format_value, label, period_text, taxonomy_badge
 from .overview import build_overview
 
 MAX_FACTS = 20
@@ -359,8 +357,11 @@ def summary_answer(conn, filename: str) -> dict:
 # entry point
 # --------------------------------------------------------------------------
 def answer_question(conn, filename: str, question: str, client, tier: str, provider_cfg: dict) -> dict:
-    from src.generation.adhoc_retrieval import (extract_search_terms, retrieve_by_keywords,
-                                                retrieve_narratives_by_keywords)
+    from src.generation.adhoc_retrieval import (
+        extract_search_terms,
+        retrieve_by_keywords,
+        retrieve_narratives_by_keywords,
+    )
 
     terms = extract_search_terms(client, question, temperature=provider_cfg["temperature"])
     if terms == "SUMMARY":

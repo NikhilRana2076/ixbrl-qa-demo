@@ -1,12 +1,15 @@
 """Offline UI preview: real web layer + stub pipeline + canned model replies. No API keys needed.
     python tests/preview_server.py  -> http://127.0.0.1:5055"""
-import json, sys
+import json
+import sys
 from pathlib import Path
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "tests" / "stubs")]
 import webapp
 from webapp import llm
 from webapp.config import Settings, hash_code
+
 
 class Canned:
     def generate(self, prompt, temperature=None, max_tokens=0, purpose=""):
