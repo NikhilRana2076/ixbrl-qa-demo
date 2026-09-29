@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fictional filing built to exercise iXBRL edge cases. Not a real company. -->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"
+      xmlns:ixt="http://www.xbrl.org/inlineXBRL/transformation/2020-02-12"
+      xmlns:xbrli="http://www.xbrl.org/2003/instance"
+      xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+      xmlns:iso4217="http://www.xbrl.org/2003/iso4217"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:core="http://xbrl.frc.org.uk/fr/2023-01-01/core"
+      xmlns:bus="http://xbrl.frc.org.uk/cd/2023-01-01/business"
+      xmlns:ext="http://www.edgecase-example.co.uk/2025">
+<head><title>Edge Case Trading Ltd - test fixture</title></head>
+<body>
+<div style="display:none">
+  <ix:header>
+    <ix:resources>
+      <xbrli:context id="FY25">
+        <xbrli:entity><xbrli:identifier scheme="http://www.companieshouse.gov.uk/">09999999</xbrli:identifier></xbrli:entity>
+        <xbrli:period><xbrli:startDate>2024-04-01</xbrli:startDate><xbrli:endDate>2025-03-31</xbrli:endDate></xbrli:period>
+      </xbrli:context>
+      <xbrli:context id="END25">
+        <xbrli:entity><xbrli:identifier scheme="http://www.companieshouse.gov.uk/">09999999</xbrli:identifier></xbrli:entity>
+        <xbrli:period><xbrli:instant>2025-03-31</xbrli:instant></xbrli:period>
+      </xbrli:context>
+      <xbrli:context id="FY25_UK">
+        <xbrli:entity><xbrli:identifier scheme="http://www.companieshouse.gov.uk/">09999999</xbrli:identifier></xbrli:entity>
+        <xbrli:period><xbrli:startDate>2024-04-01</xbrli:startDate><xbrli:endDate>2025-03-31</xbrli:endDate></xbrli:period>
+        <xbrli:scenario><xbrldi:explicitMember dimension="core:GeographicalAreaDimension">core:UnitedKingdom</xbrldi:explicitMember></xbrli:scenario>
+      </xbrli:context>
+      <xbrli:unit id="GBP"><xbrli:measure>iso4217:GBP</xbrli:measure></xbrli:unit>
+      <xbrli:unit id="GBPperShare">
+        <xbrli:divide>
+          <xbrli:unitNumerator><xbrli:measure>iso4217:GBP</xbrli:measure></xbrli:unitNumerator>
+          <xbrli:unitDenominator><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unitDenominator>
+        </xbrli:divide>
+      </xbrli:unit>
+    </ix:resources>
+  </ix:header>
+</div>
+
+<p><ix:nonNumeric name="bus:EntityCurrentLegalOrRegisteredName" contextRef="FY25">Edge Case Trading Ltd</ix:nonNumeric></p>
+
+<table>
+  <!-- 1. scale: shown in £000 -->
+  <tr><td>Turnover</td><td><ix:nonFraction name="core:Turnover" contextRef="FY25" unitRef="GBP" scale="3" decimals="-3" format="ixt:num-dot-decimal">1,234</ix:nonFraction></td></tr>
+  <!-- 2. sign attribute makes the value negative; brackets are outside the tag -->
+  <tr><td>Loss for the year</td><td>(<ix:nonFraction name="core:ProfitLoss" contextRef="FY25" unitRef="GBP" decimals="0" sign="-" format="ixt:num-dot-decimal">56,789</ix:nonFraction>)</td></tr>
+  <!-- 3. brackets outside the tag but NO sign attribute: the value is positive (an expense) -->
+  <tr><td>Administrative expenses</td><td>(<ix:nonFraction name="core:AdministrativeExpenses" contextRef="FY25" unitRef="GBP" decimals="0" format="ixt:num-dot-decimal">12,000</ix:nonFraction>)</td></tr>
+  <!-- 4. explicit xsi:nil -->
+  <tr><td>Dividends paid</td><td><ix:nonFraction name="core:DividendsPaid" contextRef="FY25" unitRef="GBP" decimals="0" xsi:nil="true"></ix:nonFraction></td></tr>
+  <!-- 5. fixed-zero dash: a genuine zero, not a missing value -->
+  <tr><td>Cash at bank</td><td><ix:nonFraction name="core:CashBankOnHand" contextRef="END25" unitRef="GBP" decimals="0" format="ixt:fixed-zero">-</ix:nonFraction></td></tr>
+  <!-- 6. digits split by whitespace, as some filing software produces -->
+  <tr><td>Net assets</td><td><ix:nonFraction name="core:NetAssetsLiabilities" contextRef="END25" unitRef="GBP" decimals="0" format="ixt:num-dot-decimal">3 2,238</ix:nonFraction></td></tr>
+  <!-- 7. ix:exclude inside a numeric fact (footnote marker) -->
+  <tr><td>Creditors</td><td><ix:nonFraction name="core:Creditors" contextRef="END25" unitRef="GBP" decimals="0" format="ixt:num-dot-decimal">1,000<ix:exclude>*</ix:exclude></ix:nonFraction></td></tr>
+  <!-- 8. dimensional fact: UK segment of turnover -->
+  <tr><td>Turnover - UK</td><td><ix:nonFraction name="core:Turnover" contextRef="FY25_UK" unitRef="GBP" scale="3" decimals="-3" format="ixt:num-dot-decimal">900</ix:nonFraction></td></tr>
+  <!-- 9. divide unit: pence per share, scale -2 -->
+  <tr><td>Basic EPS</td><td><ix:nonFraction name="core:BasicEarningsPerShare" contextRef="FY25" unitRef="GBPperShare" scale="-2" decimals="1" format="ixt:num-dot-decimal">23.6</ix:nonFraction>p</td></tr>
+  <!-- 10. company extension concept -->
+  <tr><td>Franchise income</td><td><ix:nonFraction name="ext:FranchiseIncome" contextRef="FY25" unitRef="GBP" decimals="0" format="ixt:num-dot-decimal">4,500</ix:nonFraction></td></tr>
+  <!-- 11. comma-decimal format (used in some non-UK filings): 1.234,5 means 1234.5 -->
+  <tr><td>Average employees (FTE)</td><td><ix:nonFraction name="core:AverageNumberEmployeesDuringPeriod" contextRef="FY25" unitRef="GBP" decimals="1" format="ixt:num-comma-decimal">1.234,5</ix:nonFraction></td></tr>
+</table>
+
+<!-- 12. narrative split across a continuation chain, with an excluded marker -->
+<p><ix:nonNumeric name="core:GoingConcernDisclosure" contextRef="FY25" continuedAt="cont1">The directors have assessed going concern<ix:exclude>[1]</ix:exclude> over twelve months</ix:nonNumeric></p>
+<p><ix:continuation id="cont1" continuedAt="cont2">and consider the company able to meet</ix:continuation></p>
+<p><ix:continuation id="cont2">its liabilities as they fall due.</ix:continuation></p>
+</body>
+</html>
