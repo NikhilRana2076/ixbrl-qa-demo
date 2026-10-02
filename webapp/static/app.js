@@ -146,6 +146,7 @@
     const sug = $("#suggestions"); sug.replaceChildren();
     setSuggestions(false);
     $("#sugToggle").hidden = !f;
+    renderFirstAsk(f);
     if (!f) return;
     $("#ovEntity").textContent = f.entity;
     $("#ovFile").textContent = f.entity !== f.filename ? f.filename : "";
@@ -191,6 +192,17 @@
     } else {
       for (const s of f.suggestions || []) sug.append(el("button", { class: "chip", type: "button", text: s, onclick: () => { setSuggestions(false); ask(s); } }));
     }
+  }
+
+  // First visit: three ready-made questions sit in the empty answer area so a newcomer
+  // is one click from a first answer. The block disappears with .empty on the first ask.
+  function renderFirstAsk(f) {
+    const box = $("#firstAsk");
+    if (!box) return;
+    const pool = f ? ((f.suggestions || []).length ? f.suggestions : (f.quick_asks || []).flatMap((g) => g.items)) : [];
+    const picks = pool.slice(0, 3);
+    $("#firstAskChips").replaceChildren(...picks.map((q) => el("button", { class: "chip", type: "button", text: q, onclick: () => ask(q) })));
+    box.hidden = !picks.length;
   }
 
   // Suggested questions stay folded away until asked for, so they never push answers down.
