@@ -199,8 +199,10 @@
   function renderFirstAsk(f) {
     const box = $("#firstAsk");
     if (!box) return;
+    // Short everyday wording from the headline figures; the long generated suggestions are the fallback.
+    const plain = f ? (f.metrics || []).slice(0, 3).map((m) => `What was ${m.label.toLowerCase()} this year?`) : [];
     const pool = f ? ((f.suggestions || []).length ? f.suggestions : (f.quick_asks || []).flatMap((g) => g.items)) : [];
-    const picks = pool.slice(0, 3);
+    const picks = plain.length ? plain : pool.slice(0, 3);
     $("#firstAskChips").replaceChildren(...picks.map((q) => el("button", { class: "chip", type: "button", text: q, onclick: () => ask(q) })));
     box.hidden = !picks.length;
   }
