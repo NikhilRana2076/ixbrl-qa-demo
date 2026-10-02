@@ -35,7 +35,7 @@
     </a>
     <nav class="nav" aria-label="Sections">
       <a href="#demo">Demo</a>
-      <a href="#guide">Beginner's guide</a>
+      <a href="#guide">New here?</a>
       <a href="#method">How it works</a>
       <a href="#results">Research</a>
       <a href="#faq">FAQ</a>
@@ -46,18 +46,23 @@
 <main id="top">
   <section class="hero">
     <div class="wrap">
-      <p class="eyebrow">AI assistant for UK iXBRL annual reports</p>
-      <h1>Ask a UK annual report a question.<br>Get the tagged figure, not a guess.</h1>
-      <p class="lede">Upload a company's accounts from Companies House and ask in plain English. TagTrace finds the exact figure the company reported, shows you where it came from, and checks it before you see it. You don't need to know any accounting.</p>
+      <p class="eyebrow">Free · No accounting knowledge needed</p>
+      <h1>Ask any UK company's accounts a question.<br>Get the real number, not an AI guess.</h1>
+      <p class="lede">Every number in a UK company's accounts carries a hidden label, a bit like the barcode on a supermarket shelf. TagTrace reads those labels, so when you ask <em>“How much did Greggs sell last year?”</em> you get the exact figure the company reported, and you can see where it came from.</p>
+      <div class="hero-try" id="heroTry" hidden>
+        <span class="hero-try-label">Try it now with</span>
+        <div class="chips" id="heroSamples"></div>
+      </div>
       <div class="hero-cta">
-        <a class="btn light" href="#demo">Try the demo</a>
+        <a class="btn light" href="#demo">Upload your own</a>
         <a class="btn ghost-light" href="#guide">New to company accounts? Start here</a>
       </div>
-      <dl class="hero-stats">
-        <div><dt>Correct answers</dt><dd>45% <span>→</span> 92%</dd><dd class="stat-note">AI reading the report text vs TagTrace's tag lookup, on a 102-question benchmark</dd></div>
-        <div><dt>Unanswered</dt><dd>52% <span>→</span> 4%</dd><dd class="stat-note">Given the right tagged figures, the AI rarely has to give up</dd></div>
-        <div><dt>Correct with tagged figures</dt><dd>92.2% <span class="vs">vs</span> 84.3%</dd><dd class="stat-note">Claude vs GPT-5.6 Terra on the same evidence. Both made 4 mistakes; GPT-5.6 Terra declined more questions</dd></div>
-      </dl>
+      <ol class="hero-steps" aria-label="How it works in three steps">
+        <li><span class="hs-num" aria-hidden="true">1</span><div><strong>Pick a company</strong><p>Use a sample, or download any company's accounts free from Companies House.</p></div></li>
+        <li><span class="hs-num" aria-hidden="true">2</span><div><strong>Ask in everyday words</strong><p>“Did they make a profit?” “How much cash do they have?”</p></div></li>
+        <li><span class="hs-num" aria-hidden="true">3</span><div><strong>Get the answer with its receipt</strong><p>Each answer shows the labelled figure it came from and whether it was checked.</p></div></li>
+      </ol>
+      <p class="hero-proof">In my MSc tests, AI answers were right <strong>92%</strong> of the time using the labels, against <strong>45%</strong> when it read the report text. <a href="#results">See the research</a></p>
     </div>
   </section>
 
@@ -92,6 +97,8 @@
       <div id="overview" hidden>
         <p class="entity" id="ovEntity"></p>
         <p class="muted small" id="ovFile"></p>
+        <details class="tech">
+        <summary>Technical details</summary>
         <dl class="kv">
           <div><dt>Framework</dt><dd id="ovFramework"></dd></div>
           <div><dt>Latest period</dt><dd id="ovPeriod"></dd></div>
@@ -100,6 +107,7 @@
           <div><dt>Dimensional</dt><dd id="ovDim"></dd></div>
           <div><dt>Extension facts</dt><dd id="ovExt"></dd></div>
         </dl>
+        </details>
         <button id="exploreBtn" class="btn ghost explore-btn" type="button">Explore all tagged figures</button>
         <h3 class="subhead">Headline figures</h3>
         <ul id="ovMetrics" class="metrics"></ul>
@@ -161,14 +169,25 @@
       <h2 class="section-title" id="guide-title">New to company accounts? Start here</h2>
       <p class="section-intro">Every UK limited company publishes its accounts for free on Companies House. They're full of useful facts, like how much the company sells, whether it makes a profit and how much cash it holds, but they're hard to read if you're not an accountant. TagTrace lets you ask for those facts in everyday words.</p>
 
-      <div class="guide-grid">
+      <div class="guide-grid two">
         <article class="info-card">
           <h3>What is an iXBRL filing?</h3>
-          <p>It's the annual report saved as a web page, with a hidden <strong>tag</strong> on every number saying exactly what it is (for example, <em>profit before tax for the year ended 31 December 2025</em>). Most UK companies now file their accounts this way.</p>
-          <p>Because every figure is labelled, TagTrace can look up the exact number. It doesn't have to hope an AI read the right line of a 200-page document.</p>
+          <p>It's the annual report saved as a web page, with a hidden <strong>label</strong> on every number saying exactly what it is, like <em>“profit before tax, year ended 31 December 2025”</em>. Think of a barcode on a shelf: the till doesn't guess the price, it scans it.</p>
+          <p>Most UK companies now file this way. Because every figure is labelled, TagTrace looks up the exact number instead of hoping an AI read the right line of a 200-page report.</p>
         </article>
         <article class="info-card">
-          <h3>Get a filing in 4 steps</h3>
+          <h3>Good first questions</h3>
+          <p class="small muted">Click one to put it in the question box.</p>
+          <ul class="starter">
+            {% for q in c.STARTER_QUESTIONS %}<li><button type="button" class="starter-q" data-q="{{ q }}">{{ q }}</button></li>{% endfor %}
+          </ul>
+          <p class="small muted">Small companies often file only a balance sheet, so turnover and profit may not be there. Cash and net assets usually are.</p>
+        </article>
+      </div>
+
+      <details class="fold">
+        <summary>How to get any company's accounts (4 free steps)</summary>
+        <div class="fold-body">
           <ol class="howto">
             {% for title, text in c.GET_A_FILING %}
             <li><strong>{{ title }}.</strong> {{ text }}</li>
@@ -185,16 +204,8 @@
             </ol>
             <p class="small"><a href="{{ c.FCA_NSM_URL }}" target="_blank" rel="noopener noreferrer">Open the FCA National Storage Mechanism ↗</a></p>
           </div>
-        </article>
-        <article class="info-card">
-          <h3>Good first questions</h3>
-          <p class="small muted">Click one to put it in the question box.</p>
-          <ul class="starter">
-            {% for q in c.STARTER_QUESTIONS %}<li><button type="button" class="starter-q" data-q="{{ q }}">{{ q }}</button></li>{% endfor %}
-          </ul>
-          <p class="small muted">Small companies often file only a balance sheet, so turnover and profit may not be there. Cash and net assets usually are.</p>
-        </article>
-      </div>
+        </div>
+      </details>
 
       <h3 class="subsection">What people use it for</h3>
       <div class="use-grid">
@@ -203,12 +214,14 @@
         {% endfor %}
       </div>
 
-      <h3 class="subsection" id="glossary">Words you'll see in answers</h3>
+      <details class="fold" id="glossary">
+        <summary>Words you'll see in answers (plain-English glossary)</summary>
       <dl class="glossary">
         {% for term, meaning in c.GLOSSARY %}
         <div><dt>{{ term }}</dt><dd>{{ meaning }}</dd></div>
         {% endfor %}
       </dl>
+      </details>
     </div>
   </section>
 
@@ -221,6 +234,8 @@
       <li><h3>Check before showing</h3><p>The AI has to name the figures it used. The server looks the value up itself, does any arithmetic itself, and checks that any quote really appears in the filing.</p></li>
     </ol>
 
+    <details class="fold">
+      <summary>What the badges mean, what it can't do, and where your data goes</summary>
     <div class="transparency">
       <div>
         <h3>What the badges mean</h3>
@@ -252,6 +267,7 @@
         </ul>
       </div>
     </div>
+    </details>
   </section>
 
   <section id="results" class="band" aria-labelledby="results-title">
@@ -272,9 +288,12 @@
         <div class="findings">
           <p><strong>Giving the AI the right figures fixes coverage.</strong> Annual reports are too long for an AI to read in one go, so reading the text meant cutting it short, and the answer was often in the part that was cut. With the tagged figures, Claude's correct answers rose from 45.1% to 92.2%, up 47.1 percentage points (95% CI 37.3–56.9).</p>
           <p><strong>Most of the gain is coverage, not fewer mistakes.</strong> Unanswered questions fell from 52% to 3.9%. Mistakes were rare either way: 3 of the 49 questions Claude attempted without the tags, and 4 of the 98 it attempted with them.</p>
+          <details class="fold small-fold">
+            <summary>More findings and limitations</summary>
           <p><strong>The two models differed in caution, not accuracy.</strong> With the same evidence, both made 4 mistakes. GPT-5.6 Terra declined 12 questions and Claude 4, giving 84.3% against 92.2% correct.</p>
           <p><strong>Asking the same question several times didn't catch the mistakes.</strong> It caught none of the 3 errors for either model, because the wrong answers were consistent. That's why TagTrace checks answers against the filing instead.</p>
           <p class="muted small">Limitations: a small set of filings, three repeats per consistency check, and results that may not carry over to every filing. This site uses a version of the method with structured answers and server-side checks, so it isn't exactly the benchmarked setup.</p>
+          </details>
         </div>
       </div>
     </div>
