@@ -436,6 +436,11 @@
     navigator.clipboard?.writeText(t).then(() => { btn.textContent = "Copied"; setTimeout(() => (btn.textContent = "Copy citation"), 1500); });
   }
 
+  // "Greggs plc FY2026" -> "Greggs": a short brand name reads better as a hero button.
+  function shortLabel(label) {
+    return label.replace(/\s+FY\s*\d{2,4}$/i, "").replace(/\s+(group\s+)?plc$/i, "").replace(/\s+group$/i, "").trim() || label;
+  }
+
   // ------------------------------------------------------------------ boot
   (async () => {
     try {
@@ -444,6 +449,10 @@
       const list = $("#sampleList");
       for (const x of s.samples || []) list.append(el("button", { class: "chip", type: "button", text: x.label, onclick: () => loadSample(x.id, x.label) }));
       $("#samples").hidden = !list.childElementCount;
+      const hero = $("#heroSamples");
+      for (const x of s.samples || []) hero.append(el("button", { class: "chip", type: "button", text: shortLabel(x.label), title: x.label,
+        onclick: () => { $("#demo").scrollIntoView({ behavior: "smooth" }); loadSample(x.id, x.label); } }));
+      $("#heroTry").hidden = !hero.childElementCount;
       if (s.filing) onFiling(s.filing);
     } catch (err) { showUploadError(err.message || ""); }
   })();
