@@ -9,3 +9,4 @@ httpx==0.27.2
 Flask==3.0.3
 gunicorn==23.0.0
 Flask-Compress==1.17
+psycopg2-binary==2.9.10      # optional: lets usage statistics live in a free Postgres (DATABASE_URL)

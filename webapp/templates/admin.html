@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>TagTrace usage stats</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+</head>
+<body>
+<main class="wrap">
+  <h1>TagTrace usage stats</h1>
+  <p class="muted">Private. Anonymous counts only: no IP addresses, no uploaded files.</p>
+
+  <form id="login" class="row" autocomplete="off">
+    <label for="token" class="sr">Admin token</label>
+    <input id="token" type="password" placeholder="Admin token" autocomplete="off">
+    <select id="days" aria-label="Time window">
+      <option value="7">Last 7 days</option>
+      <option value="30" selected>Last 30 days</option>
+      <option value="90">Last 90 days</option>
+    </select>
+    <button type="submit">Load</button>
+    <button type="button" id="csv" class="ghost" disabled>Download all events (CSV)</button>
+  </form>
+  <p id="msg" class="muted" role="status"></p>
+
+  <section id="report" hidden>
+    <p id="storage" class="note"></p>
+    <div id="cards" class="cards"></div>
+
+    <h2>Journey</h2>
+    <div id="funnel" class="funnel"></div>
+
+    <h2>Per day</h2>
+    <div id="days-chart" class="bars"></div>
+
+    <div class="two">
+      <div><h2>Questions</h2><div id="q-tables"></div></div>
+      <div><h2>Filings</h2><div id="f-tables"></div></div>
+    </div>
+
+    <h2>Recent questions and answers</h2>
+    <div class="scroll"><table id="recent"></table></div>
+
+    <h2>Access codes</h2>
+    <div id="codes"></div>
+  </section>
+</main>
+<script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>

@@ -3,18 +3,19 @@ Abuse and cost controls.
 
 Layers (a request must pass all of them before any paid API call is made):
   1. Rate limiter      - bursts per IP (stops scripted hammering).
-  2. Session quota     - 10 public questions per browser session.
+  2. Session quota     - public questions per browser session.
   3. IP daily quota    - stops "clear cookies, get 10 more".
   4. Access-code quota - the Claude model only runs for a valid code, and
-                         each code carries its own question allowance.
+                         each code carries its own lifetime allowance AND a
+                         per-day cap (so a shared code can't be drained at once).
   5. Global daily caps - total questions and estimated USD spend per day
                          across ALL visitors. Your provider-side spend limits
                          are a final backstop behind this one.
 
-Counters are in-process memory: they reset on restart/redeploy. That is an
-acceptable trade-off for a free-tier demo (the global spend cap and the
-provider-side limits still bound the worst case). Swap for Redis if you
-ever move to multiple instances.
+Counters are in-process memory and reset on restart/redeploy, EXCEPT the
+access-code counts and today's global totals, which are re-seeded from the
+usage-statistics store at start-up (see UsageLedger.seed) when one is
+configured. Provider-side spend limits remain the final backstop.
 """
 from __future__ import annotations
 
@@ -40,6 +41,17 @@ class RateLimiter:
         self._hits: dict[str, deque] = defaultdict(deque)
         self._lock = threading.Lock()
 
+    def exceeded(self, key: str, limit: int, window: float) -> bool:
+        """True if `key` is already at its limit. Does not record a hit."""
+        now = time.time()
+        with self._lock:
+            q = self._hits.get(key)
+            if not q:
+                return False
+            while q and q[0] <= now - window:
+                q.popleft()
+            return len(q) >= limit
+
     def allow(self, key: str, limit: int, window: float) -> bool:
         now = time.time()
         with self._lock:
@@ -62,7 +74,8 @@ class UsageLedger:
         self._day = self._today()
         self._by_session: dict[str, int] = defaultdict(int)
         self._by_ip: dict[str, int] = defaultdict(int)
-        self._by_code: dict[str, int] = defaultdict(int)   # lifetime of process
+        self._by_code: dict[str, int] = defaultdict(int)   # lifetime allowance used
+        self._by_code_day: dict[str, int] = defaultdict(int)
         self._global_q = 0
         self._global_usd = 0.0
 
@@ -76,6 +89,7 @@ class UsageLedger:
             self._day = today
             self._by_session.clear()
             self._by_ip.clear()
+            self._by_code_day.clear()
             self._global_q = 0
             self._global_usd = 0.0
 
@@ -85,6 +99,23 @@ class UsageLedger:
             if hmac.compare_digest(known, code_hash):
                 return True
         return False
+
+    def seed(self, by_code_total: dict, by_code_today: dict, global_q_today: int,
+             global_usd_today: float) -> None:
+        """Restore counters after a restart from the persisted question log."""
+        with self._lock:
+            self._roll()
+            for k, v in by_code_total.items():
+                self._by_code[k] = max(self._by_code[k], int(v))
+            for k, v in by_code_today.items():
+                self._by_code_day[k] = max(self._by_code_day[k], int(v))
+            self._global_q = max(self._global_q, int(global_q_today))
+            self._global_usd = max(self._global_usd, float(global_usd_today))
+
+    def _code_left_locked(self, code_hash: str) -> int:
+        total = self.s.access_codes[code_hash] - self._by_code[code_hash]
+        per_day = self.s.access_code_daily.get(code_hash, self.s.code_questions_per_day)
+        return max(0, min(total, per_day - self._by_code_day[code_hash]))
 
     # ---- quota queries -----------------------------------------------
     def status(self, sid: str, ip: str, code_hash: str | None) -> dict:
@@ -96,7 +127,7 @@ class UsageLedger:
             ))
             locked_left = 0
             if code_hash and code_hash in self.s.access_codes:
-                locked_left = max(0, self.s.access_codes[code_hash] - self._by_code[code_hash])
+                locked_left = self._code_left_locked(code_hash)
             return {
                 "public_left": public_left,
                 "public_limit": self.s.public_questions_per_session,
@@ -120,7 +151,10 @@ class UsageLedger:
                     return "locked"
                 if self._by_code[code_hash] >= self.s.access_codes[code_hash]:
                     return "code_exhausted"
+                if self._code_left_locked(code_hash) <= 0:
+                    return "code_daily"
                 self._by_code[code_hash] += 1
+                self._by_code_day[code_hash] += 1
             else:
                 if self._by_session[sid] >= self.s.public_questions_per_session:
                     return "session_quota"
@@ -136,6 +170,7 @@ class UsageLedger:
         with self._lock:
             if tier == "locked" and code_hash:
                 self._by_code[code_hash] = max(0, self._by_code[code_hash] - 1)
+                self._by_code_day[code_hash] = max(0, self._by_code_day[code_hash] - 1)
             else:
                 self._by_session[sid] = max(0, self._by_session[sid] - 1)
                 self._by_ip[ip] = max(0, self._by_ip[ip] - 1)

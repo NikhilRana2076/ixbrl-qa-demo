@@ -40,6 +40,7 @@ def settings(tmp_path):
     return Settings(env="testing", secret_key="x" * 40, access_codes={hash_code("GOOD-CODE"): 3},
                     public_questions_per_session=10, public_questions_per_ip_per_day=20,
                     samples_dir=str(tmp_path / "samples"), ask_per_minute=100, contact_email="a@b.c",
+                    stats_db_path=str(tmp_path / "stats.sqlite"),
                     contact_linkedin="https://www.linkedin.com/in/x")
 
 

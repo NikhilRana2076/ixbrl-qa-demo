@@ -69,11 +69,14 @@ What stops abuse, in order: burst rate limit per IP → 25 questions/session →
 ## 4. Access codes for Claude
 
 ```bash
-python -m webapp.make_code 25           # random code, 25 questions
-python -m webapp.make_code 50 VIVA-2026 # chosen code
+python -m webapp.make_code 15                    # random code: 15 questions in total
+python -m webapp.make_code 20 VIVA-2026          # chosen code: 20 questions in total
+python -m webapp.make_code 20 VIVA-2026 5        # ...and at most 5 per day
 ```
 
-Send the **plain code** to the person. Append the printed **hash:quota** to `ACCESS_CODES` on Render, comma-separated, and save (Render redeploys). Only hashes are stored on the server. To revoke a code, delete its entry.
+Send the **plain code** to the person. Append the printed entry (`hash:total` or `hash:total:per-day`) to `ACCESS_CODES` on Render, comma-separated, and save (Render redeploys). Only hashes are stored on the server. To revoke a code, delete its entry.
+
+Two limits protect your Claude budget: the **total** allowance per code, and a **per-day** cap (default 15, set with `CODE_QUESTIONS_PER_DAY`, or per code with the third number). Your own code can carry a bigger allowance, for example `hash:300:100`. With `DATABASE_URL` set (step 8), used allowances are remembered across restarts and deploys.
 
 ## 5. Sample filings
 
@@ -105,3 +108,13 @@ Narrative excerpts now use keyword-density windows over the whole disclosure rat
 ```bash
 python tests/preview_server.py   # http://127.0.0.1:5055, canned model replies, fictional filing
 ```
+
+## 8. Usage statistics and the private admin page
+
+The app keeps anonymous statistics (see `webapp/stats.py`): filings loaded (company name, not the file), questions, the answer shown, badge, response time, estimated cost and votes. No IP addresses.
+
+1. Set `ADMIN_TOKEN` on Render to a long random string (32+ characters). Without it, `/admin` doesn't exist.
+2. To keep history across restarts and deploys, create a free Postgres at neon.com, copy its connection string and set it as `DATABASE_URL` on Render. Without it, history lives in a temporary file and is lost on every restart.
+3. Open `https://<your site>/admin`, paste the token, press Load. **Download all events (CSV)** gives you everything for the research post.
+
+Set `STATS_STORE_QUESTIONS=0` to stop storing the question text and answer shown (counts only).

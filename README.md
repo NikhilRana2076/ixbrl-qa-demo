@@ -61,7 +61,7 @@ Every answer is a card that shows the value, the tag it came from, the period (e
 | **Not verified** | The AI's answer couldn't be confirmed. Treat it with care. |
 | **Not in tagged data** | Nothing in the filing answers it, so no number is made up |
 
-Use the thumbs up or down under an answer to say whether it was right. Votes are logged, with the question and answer, to measure real-world accuracy.
+Use the thumbs up or down under an answer to say whether it was right. Votes help measure real-world accuracy.
 
 **What it can't guarantee:** the server can confirm that a number is really in the filing, but not that it's the *right* one for your question. The AI could still pick last year's figure or a breakdown instead of the total. Always check the period and breakdown on the card.
 
@@ -131,6 +131,7 @@ See [eval/README.md](eval/README.md) for methodology, baseline thresholds and ho
 
 - Uploaded files are deleted as soon as they're parsed. Extracted facts are deleted when you clear the filing or after 30 minutes of inactivity.
 - Your question and the retrieved facts are sent to OpenAI (public model) or Anthropic (Claude) to write the answer. Only upload public filings.
+- Anonymous usage statistics are kept (the company name from the filing, questions asked, the answer shown, response time and votes) to measure accuracy and write up the research. There's no IP address, no uploaded file and no sign-up. Don't put personal information in a question.
 - The public model is free for 25 questions per visit. Claude needs an access code, which you can request through the contact links on the site.
 - This is a research demonstration, **not financial advice**.
 
@@ -164,7 +165,7 @@ make test           # both suites below, no API calls
 
 | Suite | What it covers |
 |---|---|
-| `tests/` (20 tests) | Web layer against a stubbed `src/`: security headers, upload hardening, quotas, answer verification |
+| `tests/` (31 tests, plus 1 optional Postgres test) | Web layer against a stubbed `src/`: security headers, upload hardening, quotas, answer verification |
 | `tests_integration/` (34 tests + 1 known gap) | The real parser on an edge-case fixture (scale, sign, nil, fixed-zero, split digits, `ix:exclude`, dimensions, divide units, continuations, XXE), retrieval ranking on the Vodafone sample, and the evaluation harness |
 | `eval/` | The 102-question dissertation benchmark run against the live pipeline: free retrieval check on every PR, answer accuracy on a 20-question subset or all 102. See [eval/README.md](eval/README.md). |
 

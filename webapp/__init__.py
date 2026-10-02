@@ -10,6 +10,7 @@ Production:    gunicorn -c gunicorn.conf.py wsgi:app
 """
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import secrets
@@ -21,7 +22,7 @@ from collections import OrderedDict
 from contextlib import closing
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, redirect, render_template, request, session
 from markupsafe import Markup
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -40,6 +41,7 @@ from .llm import PROVIDERS, make_client
 from .overview import build_overview
 from .security import SECURITY_HEADERS, RateLimiter, UsageLedger, client_ip, same_origin_ok
 from .sessions import FilingRegistry, FilingSession
+from .stats import StatsStore, summarise, to_csv, visitor_id
 
 log = logging.getLogger("webapp")
 MAX_QUESTION_CHARS = 400
@@ -72,11 +74,17 @@ def create_app(settings: Settings | None = None) -> Flask:
     registry.purge_all()                         # nothing survives a restart
     ledger = UsageLedger(s)
     limiter = RateLimiter()
+    stats = StatsStore(s)
+    code_ids = {h[:8]: h for h in s.access_codes}
+    try:        # keep access-code allowances and today's totals across restarts
+        ledger.seed(**stats.restore_counters(code_ids))
+    except Exception:                                        # noqa: BLE001
+        log.warning("could not restore counters from the stats store", exc_info=True)
     ingest.init_gate(s.max_concurrent_parses)
     sample_lock = threading.Lock()
     sample_cache = Path(registry.root.parent) / "ixbrl_sample_cache"
 
-    app.extensions["demo"] = {"settings": s, "registry": registry, "ledger": ledger}
+    app.extensions["demo"] = {"settings": s, "registry": registry, "ledger": ledger, "stats": stats}
 
     # ------------------------------------------------------------------ helpers
     def sid() -> str:
@@ -84,6 +92,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             session["sid"] = secrets.token_urlsafe(24)
             session.permanent = True
         return session["sid"]
+
+    def vid() -> str:
+        return visitor_id(app.config["SECRET_KEY"], sid())
 
     def err(code: str, message: str, status: int = 400, **extra):
         return jsonify({"error": code, "message": message, **extra}), status
@@ -103,6 +114,10 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.before_request
     def guard():
+        host = request.host.split(":")[0].lower()
+        if (host in s.redirect_from_hosts and request.path != "/healthz"
+                and request.method in ("GET", "HEAD")):
+            return redirect(s.site_url + request.full_path.rstrip("?"), code=301)
         if request.method == "POST" and not same_origin_ok():
             return err("forbidden", "Cross-site request blocked.", 403)
         if request.path.startswith("/api/") and not limiter.allow(
@@ -116,8 +131,9 @@ def create_app(settings: Settings | None = None) -> Flask:
             resp.headers.setdefault(k, v)
         if s.is_production:
             resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-        if request.path.startswith("/api/"):
+        if request.path.startswith("/api/") or request.path.startswith("/admin"):
             resp.headers["Cache-Control"] = "no-store"
+            resp.headers["X-Robots-Tag"] = "noindex, nofollow"
         return resp
 
     @app.errorhandler(RequestEntityTooLarge)
@@ -146,7 +162,7 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     @app.get("/robots.txt")
     def robots():
-        body = f"User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: {s.site_url}/sitemap.xml\n"
+        body = f"User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\n\nSitemap: {s.site_url}/sitemap.xml\n"
         return app.response_class(body, mimetype="text/plain")
 
     @app.get("/sitemap.xml")
@@ -163,6 +179,9 @@ def create_app(settings: Settings | None = None) -> Flask:
     # --------------------------------------------------------------------- api
     @app.get("/api/state")
     def state():
+        if not session.get("seen"):
+            session["seen"] = 1
+            stats.record("visit", vid())
         item = registry.get(session.get("sid"))
         return jsonify({"quota": quota(), "filing": item.overview if item else None,
                         "samples": samples()})
@@ -191,11 +210,16 @@ def create_app(settings: Settings | None = None) -> Flask:
                 })
         return jsonify({"facts": rows, "truncated": len(rows) >= 8000})
 
-    def _finish_load(workdir: Path, db_path: Path, display: str):
+    def _finish_load(workdir: Path, db_path: Path, display: str, source: str = "upload",
+                     t0: float | None = None):
         item = FilingSession(sid=sid(), workdir=workdir, db_path=db_path, filename=display)
         with closing(item.connect()) as conn:
             item.overview = build_overview(conn, display)
         registry.put(item)
+        ov = item.overview
+        stats.record("filing", vid(), ok=True, source=source, entity=str(ov.get("entity", ""))[:80],
+                     framework=ov.get("framework"), n_facts=ov.get("n_facts"),
+                     parse_s=round(time.time() - t0, 1) if t0 else None)
         return jsonify({"filing": item.overview, "quota": quota()})
 
     @app.post("/api/upload")
@@ -206,15 +230,17 @@ def create_app(settings: Settings | None = None) -> Flask:
         if not f or not f.filename:
             return err("no_file", "Choose a filing to upload.")
         workdir = registry.new_workdir()
+        t0 = time.time()
         try:
             db_path, _counts = ingest_upload(f, workdir, s)
         except UploadError as e:
             shutil.rmtree(workdir, ignore_errors=True)
+            stats.record("filing", vid(), ok=False, source="upload", reason=str(e)[:100])
             return err("upload", str(e))
         except BaseException:
             shutil.rmtree(workdir, ignore_errors=True)
             raise
-        return _finish_load(workdir, db_path, Path(f.filename).name[:120])
+        return _finish_load(workdir, db_path, Path(f.filename).name[:120], "upload", t0)
 
     @app.post("/api/sample")
     def load_sample():
@@ -239,7 +265,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 shutil.rmtree(tmp, ignore_errors=True)
         workdir = registry.new_workdir()
         shutil.copy(cached, workdir / "facts.sqlite")
-        return _finish_load(workdir, workdir / "facts.sqlite", match["label"])
+        return _finish_load(workdir, workdir / "facts.sqlite", match["label"], "sample", time.time())
 
     @app.post("/api/clear")
     def clear():
@@ -253,8 +279,10 @@ def create_app(settings: Settings | None = None) -> Flask:
         code = str((request.get_json(silent=True) or {}).get("code", ""))[:64]
         h = hash_code(code)
         if not code or not ledger.check_code(h):
+            stats.record("unlock", vid(), ok=False)
             time.sleep(0.4)
             return err("bad_code", "That access code is not valid.")
+        stats.record("unlock", vid(), ok=True, code_id=h[:8])
         session["code"] = h
         return jsonify({"ok": True, "quota": quota()})
 
@@ -287,9 +315,11 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "service_paused": "The demo has reached today's usage cap. Please try again tomorrow.",
                 "locked": "The Claude model needs an access code.",
                 "code_exhausted": "This access code has used its question allowance.",
+                "code_daily": "This access code has reached its limit for today. It resets at midnight UTC.",
                 "session_quota": "You've used all the free questions for this session.",
                 "ip_quota": "You've reached today's free question limit.",
             }
+            stats.record("blocked", vid(), reason=blocked, tier=tier)
             return err(blocked, messages[blocked], 429 if blocked != "locked" else 403, quota=quota())
 
         client = make_client(tier, s)
@@ -299,6 +329,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 result = answer_question(conn, item.filename, question, client, tier, PROVIDERS[tier])
         except Exception:                                     # noqa: BLE001
             ledger.refund(sid(), ip, tier, code)
+            stats.record("question_failed", vid(), tier=tier)
             log.exception("ask failed (tier=%s)", tier)
             return err("model", "The model could not answer just now. Your question was not counted.",
                        502, quota=quota())
@@ -327,6 +358,13 @@ def create_app(settings: Settings | None = None) -> Flask:
             }
             while len(answers) > 2000:
                 answers.popitem(last=False)
+        stats.record("question", vid(), tier=tier, model=result["model"], kind=result.get("kind"),
+                     level=result.get("status", {}).get("level") or "n/a",
+                     elapsed_s=result["elapsed_s"], cost_usd=round(client.spent_usd, 5),
+                     entity=str(item.overview.get("entity", ""))[:80], answer_id=answer_id,
+                     code_id=(code or "")[:8] if tier == "locked" else None,
+                     **({"question": question[:200], "answer": str(shown)[:80] if shown else None,
+                         "concept": fact.get("concept")} if s.stats_store_questions else {}))
         log.info("ask id=%s tier=%s kind=%s status=%s cost=%.5f", answer_id, tier, result.get("kind"),
                  result.get("status", {}).get("level"), client.spent_usd)
         return jsonify(result)
@@ -344,9 +382,53 @@ def create_app(settings: Settings | None = None) -> Flask:
             changed, a["vote"] = a["vote"] != vote, vote
             record = {k: v for k, v in a.items() if k != "sid"}
         if changed:
+            stats.record("vote", vid(), answer_id=answer_id, vote=vote, model=a.get("tier"),
+                         level=a.get("level"))
             # One JSON line per vote: grep "feedback " in the Render logs to collect them.
             log.info("feedback %s", json.dumps({"answer_id": answer_id, **record}, ensure_ascii=False))
         return jsonify({"ok": True, "vote": vote})
+
+    # ------------------------------------------------------------------- admin
+    def _admin_ok():
+        """None if the bearer token is right, else an error response. Disabled without ADMIN_TOKEN."""
+        if len(s.admin_token) < 16:
+            return err("not_found", "Not found.", 404)
+        key = f"adminfail:{client_ip()}"
+        if limiter.exceeded(key, limit=8, window=900):
+            return err("rate_limited", "Too many attempts. Try again later.", 429)
+        given = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        if not given or not hmac.compare_digest(given.encode(), s.admin_token.encode()):
+            limiter.allow(key, limit=8, window=900)          # count the failure
+            time.sleep(0.4)
+            return err("unauthorised", "Wrong token.", 401)
+        return None
+
+    @app.get("/admin")
+    def admin_page():
+        if len(s.admin_token) < 16:
+            return err("not_found", "Not found.", 404)
+        return render_template("admin.html", site_url=s.site_url)
+
+    @app.get("/api/admin/stats")
+    def admin_stats():
+        bad = _admin_ok()
+        if bad:
+            return bad
+        days = min(max(int(request.args.get("days", 30) or 30), 1), 400)
+        out = summarise(stats.fetch(days=days), days)
+        out["storage"] = {"backend": stats.backend, "persistent": stats.persistent,
+                          "stores_questions": s.stats_store_questions}
+        return jsonify(out)
+
+    @app.get("/api/admin/export.csv")
+    def admin_export():
+        bad = _admin_ok()
+        if bad:
+            return bad
+        days = min(max(int(request.args.get("days", 30) or 30), 1), 400)
+        resp = app.response_class(to_csv(stats.fetch(days=days)), mimetype="text/csv")
+        resp.headers["Content-Disposition"] = "attachment; filename=tagtrace-events.csv"
+        return resp
 
     return app
 
