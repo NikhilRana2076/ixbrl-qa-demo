@@ -66,7 +66,8 @@ class StatsStore:
                 import psycopg2  # noqa: F401
                 self._init_pg()
                 self.backend, self.persistent = "postgres", True
-                log.info("stats: writing events to Postgres")
+                host = settings.database_url.split("@")[-1].split("/")[0].split("?")[0]
+                log.info("stats: Postgres ready at %s", host)
             except Exception as exc:                  # noqa: BLE001
                 log.warning("Postgres unavailable (%s); falling back to a local SQLite file", exc)
         if self.backend == "sqlite":
@@ -77,6 +78,9 @@ class StatsStore:
             self._thread.start()
         else:
             self._sync = True
+        if self.backend == "postgres":
+            # One event per start-up: proves the whole write path on every deploy.
+            self.record("boot", None, backend="postgres", host=self.s.database_url.split("@")[-1].split("/")[0])
 
     _sync = False
 
@@ -88,7 +92,7 @@ class StatsStore:
         import psycopg2
         conn = psycopg2.connect(self.s.database_url, connect_timeout=10,
                                 keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
-                                tcp_user_timeout=15000, options="-c statement_timeout=15000")
+                                tcp_user_timeout=15000)   # no startup "options": Neon's pooler rejects them
         conn.autocommit = True
         return conn
 
