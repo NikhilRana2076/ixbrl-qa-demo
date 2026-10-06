@@ -30,6 +30,7 @@ import hmac
 import io
 import json
 import logging
+import os
 import queue
 import sqlite3
 import statistics
@@ -73,14 +74,15 @@ class StatsStore:
         if self.backend == "sqlite":
             self._init_sqlite()
         self._thread = None
-        if background:
-            self._thread = threading.Thread(target=self._run, name="stats-writer", daemon=True)
-            self._thread.start()
-        else:
+        self._pid = None
+        self._thread_lock = threading.Lock()
+        self._background = background
+        if not background:
             self._sync = True
         if self.backend == "postgres":
             # One event per start-up: proves the whole write path on every deploy.
             self.record("boot", None, backend="postgres", host=self.s.database_url.split("@")[-1].split("/")[0])
+            self.flush(5)
 
     _sync = False
 
@@ -156,27 +158,50 @@ class StatsStore:
             finally:
                 self._q.task_done()
 
+    def _ensure_thread(self) -> None:
+        """Start the writer in the process that is actually serving requests.
+
+        gunicorn can import the app in its master and then fork workers; a thread started
+        before the fork does not exist in the worker, so events would queue up unwritten.
+        A new process therefore gets its own queue and thread the first time it needs them."""
+        if not self._background:
+            return
+        pid = os.getpid()
+        if self._thread is not None and self._pid == pid and self._thread.is_alive():
+            return
+        with self._thread_lock:
+            if self._thread is not None and self._pid == pid and self._thread.is_alive():
+                return
+            if self._pid is not None and self._pid != pid:
+                self._q = queue.Queue(maxsize=5000)        # the inherited queue's lock may be held
+                self._thread_lock = threading.Lock()
+            self._pid = pid
+            self._thread = threading.Thread(target=self._run, name="stats-writer", daemon=True)
+            self._thread.start()
+
     # -------------------------------------------------------------------- API
     def record(self, event: str, visitor: str | None = None, /, **data) -> None:
         """Queue one event. Never raises. (Positional-only so data may use any key, e.g. `kind`.)"""
         try:
             data = {k: v for k, v in data.items() if v is not None}
             item = (time.time(), event, visitor, data)
-            if self._sync or self._thread is None:
+            if self._sync or not self._background:
                 self._write(*item)
             else:
+                self._ensure_thread()
                 self._q.put_nowait(item)
         except Exception:                              # noqa: BLE001
             log.debug("stats record dropped", exc_info=True)
 
     def health(self) -> dict:
         """Writer status for the admin page, so a stalled writer is visible instead of silent."""
+        self._ensure_thread()
         return {"queued": self._q.qsize(), "last_write": self.last_ok, "last_error": self.last_error,
                 "writer_alive": bool(self._thread and self._thread.is_alive())}
 
     def flush(self, timeout: float = 5.0) -> None:
         """Wait until queued events are written (used by tests and shutdown)."""
-        if self._thread is None:
+        if self._thread is None or self._pid != os.getpid():
             return
         end = time.time() + timeout
         while self._q.unfinished_tasks and time.time() < end:
