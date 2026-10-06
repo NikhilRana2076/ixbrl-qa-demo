@@ -21,6 +21,13 @@
     $("storage").textContent = d.storage.persistent
       ? "Stored in your database: this history survives restarts and deploys."
       : "Stored in a temporary file: this history is LOST when the server restarts. Add DATABASE_URL on Render to keep it.";
+    const st = d.storage, ago = st.last_write ? Math.round((Date.now() / 1000 - st.last_write) / 60) + " min ago" : "none since the last restart";
+    if (st.writer_alive === false || st.last_error || st.queued > 0) {
+      $("storage").className = "note warn";
+      $("storage").textContent += ` Writer problem: ${st.writer_alive === false ? "writer stopped. " : ""}${st.queued ? st.queued + " events waiting. " : ""}${st.last_error ? "Last error: " + st.last_error + ". " : ""}Last event saved: ${ago}.`;
+    } else {
+      $("storage").textContent += ` Last event saved: ${ago}.`;
+    }
     const cards = [
       [t.visitors, "visitors"], [t.filings_loaded, "filings loaded"], [t.filings_uploaded, "of them uploaded"],
       [t.filings_sample, "of them samples"], [t.questions, "questions asked"],

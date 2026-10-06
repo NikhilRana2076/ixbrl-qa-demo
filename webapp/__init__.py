@@ -417,7 +417,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         days = min(max(int(request.args.get("days", 30) or 30), 1), 400)
         out = summarise(stats.fetch(days=days), days)
         out["storage"] = {"backend": stats.backend, "persistent": stats.persistent,
-                          "stores_questions": s.stats_store_questions}
+                          "stores_questions": s.stats_store_questions, **stats.health()}
         return jsonify(out)
 
     @app.get("/api/admin/export.csv")
