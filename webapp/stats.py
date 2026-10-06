@@ -55,7 +55,8 @@ class StatsStore:
     def __init__(self, settings, *, background: bool = True) -> None:
         self.s = settings
         self._q: "queue.Queue[tuple]" = queue.Queue(maxsize=5000)
-        self._pg = None                               # live Postgres connection (worker thread only)
+        self.last_ok: float | None = None             # time of the last event written
+        self.last_error: str | None = None            # last write failure, shown on the admin page
         self._sqlite_path = (settings.stats_db_path
                              or str(Path(tempfile.gettempdir()) / "tagtrace_stats.sqlite"))
         self.backend = "sqlite"
@@ -63,8 +64,9 @@ class StatsStore:
         if settings.database_url:
             try:
                 import psycopg2  # noqa: F401
-                self._connect_pg()
+                self._init_pg()
                 self.backend, self.persistent = "postgres", True
+                log.info("stats: writing events to Postgres")
             except Exception as exc:                  # noqa: BLE001
                 log.warning("Postgres unavailable (%s); falling back to a local SQLite file", exc)
         if self.backend == "sqlite":
@@ -79,16 +81,28 @@ class StatsStore:
     _sync = False
 
     # ---------------------------------------------------------------- backends
-    def _connect_pg(self):
+    def _pg_connect(self):
+        """A fresh, short-lived connection. A long-lived one goes stale on free hosting
+        (the database suspends when idle) and a write on it can hang with no error, which
+        silently stops every later event; so each write opens its own and gives up quickly."""
         import psycopg2
-        self._pg = psycopg2.connect(self.s.database_url, connect_timeout=10)
-        self._pg.autocommit = True
-        with self._pg.cursor() as cur:
-            cur.execute("""CREATE TABLE IF NOT EXISTS events (
-                             id BIGSERIAL PRIMARY KEY, ts DOUBLE PRECISION NOT NULL,
-                             kind TEXT NOT NULL, visitor TEXT, data JSONB NOT NULL DEFAULT '{}'::jsonb)""")
-            cur.execute("CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts)")
-            cur.execute("CREATE INDEX IF NOT EXISTS events_kind_idx ON events (kind)")
+        conn = psycopg2.connect(self.s.database_url, connect_timeout=10,
+                                keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
+                                tcp_user_timeout=15000, options="-c statement_timeout=15000")
+        conn.autocommit = True
+        return conn
+
+    def _init_pg(self):
+        conn = self._pg_connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""CREATE TABLE IF NOT EXISTS events (
+                                 id BIGSERIAL PRIMARY KEY, ts DOUBLE PRECISION NOT NULL,
+                                 kind TEXT NOT NULL, visitor TEXT, data JSONB NOT NULL DEFAULT '{}'::jsonb)""")
+                cur.execute("CREATE INDEX IF NOT EXISTS events_ts_idx ON events (ts)")
+                cur.execute("CREATE INDEX IF NOT EXISTS events_kind_idx ON events (kind)")
+        finally:
+            conn.close()
 
     def _init_sqlite(self) -> None:
         with sqlite3.connect(self._sqlite_path) as c:
@@ -100,23 +114,24 @@ class StatsStore:
     def _write(self, ts: float, kind: str, visitor: str | None, data: dict) -> None:
         payload = json.dumps(data, ensure_ascii=False, default=str)
         if self.backend == "postgres":
-            for attempt in (1, 2):
+            for attempt in (1, 2, 3):
+                conn = None
                 try:
-                    if self._pg is None or self._pg.closed:
-                        self._connect_pg()
-                    with self._pg.cursor() as cur:
+                    conn = self._pg_connect()
+                    with conn.cursor() as cur:
                         cur.execute("INSERT INTO events (ts, kind, visitor, data) VALUES (%s,%s,%s,%s::jsonb)",
                                     (ts, kind, visitor, payload))
                     return
                 except Exception:                      # noqa: BLE001
-                    try:
-                        if self._pg is not None:
-                            self._pg.close()
-                    except Exception:                  # noqa: BLE001
-                        pass
-                    self._pg = None
-                    if attempt == 2:
+                    if attempt == 3:
                         raise
+                    time.sleep(1.5 * attempt)
+                finally:
+                    if conn is not None:
+                        try:
+                            conn.close()
+                        except Exception:              # noqa: BLE001
+                            pass
         else:
             with sqlite3.connect(self._sqlite_path, timeout=10) as c:
                 c.execute("INSERT INTO events (ts, kind, visitor, data) VALUES (?,?,?,?)",
@@ -127,7 +142,9 @@ class StatsStore:
             item = self._q.get()
             try:
                 self._write(*item)
-            except Exception:                          # noqa: BLE001
+                self.last_ok, self.last_error = time.time(), None
+            except Exception as exc:                   # noqa: BLE001
+                self.last_error = f"{type(exc).__name__}: {str(exc)[:160]}"
                 # Last resort: keep the event in the server log rather than losing it.
                 log.warning("stats write failed; event kept in log: %s",
                             json.dumps({"ts": item[0], "kind": item[1], "visitor": item[2], **item[3]},
@@ -148,6 +165,11 @@ class StatsStore:
         except Exception:                              # noqa: BLE001
             log.debug("stats record dropped", exc_info=True)
 
+    def health(self) -> dict:
+        """Writer status for the admin page, so a stalled writer is visible instead of silent."""
+        return {"queued": self._q.qsize(), "last_write": self.last_ok, "last_error": self.last_error,
+                "writer_alive": bool(self._thread and self._thread.is_alive())}
+
     def flush(self, timeout: float = 5.0) -> None:
         """Wait until queued events are written (used by tests and shutdown)."""
         if self._thread is None:
@@ -160,11 +182,14 @@ class StatsStore:
         since = time.time() - days * 86400
         rows: list[tuple]
         if self.backend == "postgres":
-            import psycopg2
-            with psycopg2.connect(self.s.database_url, connect_timeout=10) as c, c.cursor() as cur:
-                cur.execute("SELECT ts, kind, visitor, data FROM events WHERE ts >= %s "
-                            "ORDER BY ts ASC LIMIT %s", (since, limit))
-                rows = cur.fetchall()
+            conn = self._pg_connect()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT ts, kind, visitor, data FROM events WHERE ts >= %s "
+                                "ORDER BY ts ASC LIMIT %s", (since, limit))
+                    rows = cur.fetchall()
+            finally:
+                conn.close()
         else:
             with sqlite3.connect(self._sqlite_path, timeout=10) as c:
                 rows = c.execute("SELECT ts, kind, visitor, data FROM events WHERE ts >= ? "
