@@ -15,7 +15,7 @@ The wrapper adds two things:
 from __future__ import annotations
 
 PROVIDERS = {
-    "public": {"provider": "openai", "temperature": None, "max_tokens": 900},
+    "public": {"provider": "openai", "temperature": None, "max_tokens": 2000},
     "locked": {"provider": "anthropic", "temperature": 0.0, "max_tokens": 500},
 }
 
