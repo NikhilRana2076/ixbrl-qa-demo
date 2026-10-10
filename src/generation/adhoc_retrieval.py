@@ -45,7 +45,7 @@ Keywords (comma-separated, no explanation, or SUMMARY):"""
 def extract_search_terms(client, question: str,
                           temperature: float | None = 0.0) -> list[str] | str:
     prompt = EXTRACT_TEMPLATE.format(question=question)
-    result = client.generate(prompt, temperature=temperature, max_tokens=60,
+    result = client.generate(prompt, temperature=temperature, max_tokens=400,
                              purpose="adhoc_concept_extraction")
     text = result["text"].strip()
     if text.upper().startswith("SUMMARY"):
