@@ -48,8 +48,9 @@ breakdowns, choose the one that matches what the question specifically asks \
 for. If the question does not specify a dimension, prefer the undimensioned \
 (consolidated total) fact. If no undimensioned total exists but one \
 dimensional member clearly represents the overall/group figure, use it and \
-say so. If the evidence does not answer the question, use answer_type \
-"not_found" rather than guessing.
+say so. If the question does not name a period, use the most recent period \
+shown for that figure. If the evidence does not answer the question, use \
+answer_type "not_found" rather than guessing.
 
 Respond with ONE JSON object and nothing else:
 {{
@@ -250,7 +251,35 @@ OP_TEXT = {"difference": "{a} − {b}", "sum": "{a} + {b}", "ratio": "{a} ÷ {b}
            "percent_of": "{a} ÷ {b} × 100", "percent_change": "({a} − {b}) ÷ |{b}| × 100"}
 
 
-def verify(parsed: dict | None, facts: list[dict], narratives: list[dict], excerpts: dict) -> dict:
+_PRIOR_PERIOD = re.compile(r"\b(prior|previous|preceding|earlier|before|comparative|(?:19|20)\d{2})\b", re.I)
+
+
+def _prefer_latest_period(f: dict, facts: list[dict], question: str) -> dict:
+    """If the question names no period, show the most recent period of the figure the model picked.
+
+    The model sometimes cites the prior-year comparative for "last year" questions. That fact is real, but it
+    answers a different question, so unless the question mentions an explicit year or a prior-period word we
+    swap to the same concept (same dimensions and unit) in the latest period that was retrieved.
+    """
+    if _PRIOR_PERIOD.search(question or ""):
+        return f
+
+    def end(o):
+        return str(o.get("period_end") or o.get("period_instant") or "")
+
+    def sig(o):
+        return (o.get("local_name"), o.get("currency") or o.get("unit_label"), bool(o.get("period_start")),
+                tuple(sorted((d["axis"], d["member"]) for d in dimensions(o))))
+
+    same = [o for o in facts if sig(o) == sig(f) and end(o)]
+    if not same:
+        return f
+    latest = max(same, key=end)
+    return latest if end(latest) > end(f) else f
+
+
+def verify(parsed: dict | None, facts: list[dict], narratives: list[dict], excerpts: dict,
+           question: str = "") -> dict:
     by_id = {f["fact_id"]: f for f in facts}
     narr_by_id = {n["narrative_id"]: n for n in narratives}
     if not parsed:
@@ -271,7 +300,7 @@ def verify(parsed: dict | None, facts: list[dict], narratives: list[dict], excer
         if len(cited) != 1:
             return {"kind": "unverified", "summary": summary, "status": _status(
                 "unverified", "The model did not cite exactly one retrieved fact.")}
-        f = cited[0]
+        f = _prefer_latest_period(cited[0], facts, question)
         card = fact_card(f)
         alts = [fact_card(o) for o in facts if o is not f and o.get("local_name") == f.get("local_name")
                 and o.get("value") != f.get("value")
@@ -381,7 +410,7 @@ def answer_question(conn, filename: str, question: str, client, tier: str, provi
     result = client.generate(prompt, temperature=provider_cfg["temperature"],
                              max_tokens=provider_cfg["max_tokens"], purpose=f"web_{tier}")
     parsed = parse_json(result.get("text", ""))
-    out = verify(parsed, facts, narratives, excerpts)
+    out = verify(parsed, facts, narratives, excerpts, question)
     out["evidence"] = [fact_card(f) for f in facts]
     out["evidence_narratives"] = [{"narrative_id": n["narrative_id"], "label": label(n.get("local_name")),
                                    "concept": n.get("concept"), "chars": n.get("char_count")}

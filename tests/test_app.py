@@ -78,6 +78,27 @@ def test_fact_answer_value_comes_from_store(client, script):
     assert any(a["dimensions"] for a in j["alternatives"])     # underlying member surfaced
 
 
+def test_unspecified_period_shows_latest_not_prior_year(client, script):
+    # The model sometimes cites the prior-year comparative (F2). With no period in the question, the
+    # card must show the latest period of the same figure instead.
+    upload(client)
+    script(["Revenue"], {"answer_type": "fact", "fact_ids": ["F2"], "operation": "none",
+                         "summary": "Revenue was lower."})
+    j = ask(client, "How much did the company sell last year?").json
+    assert j["kind"] == "fact"
+    assert j["fact"]["value"]["exact"] == "£4,812,000,000"
+    assert j["fact"]["period"] == "Year ended 31 December 2025"
+
+
+def test_explicit_prior_period_is_respected(client, script):
+    upload(client)
+    script(["Revenue"], {"answer_type": "fact", "fact_ids": ["F2"], "operation": "none",
+                         "summary": "Revenue was lower."})
+    j = ask(client, "What was revenue in 2024?").json
+    assert j["kind"] == "fact"
+    assert j["fact"]["value"]["exact"] == "£4,530,000,000"
+
+
 def test_computation_done_server_side(client, script):
     upload(client)
     script(["Revenue"], {"answer_type": "computation", "fact_ids": ["F1", "F2"],
