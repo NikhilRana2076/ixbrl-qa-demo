@@ -106,6 +106,19 @@ def build_quick_asks(conn, metrics: list[dict], ratios: list[dict]) -> list[dict
     return [{"group": g, "items": items[:3]} for g, items in groups if items]
 
 
+THIN_FACTS, THIN_CONCEPTS = 100, 40      # real full accounts have hundreds of facts; micro-entity filings have a few dozen
+
+
+def coverage(conn: sqlite3.Connection) -> dict:
+    """How much tagged data a filing has, so the app can say so instead of just answering 'not found'."""
+    n_facts, n_concepts = conn.execute("SELECT COUNT(*), COUNT(DISTINCT local_name) FROM facts").fetchone()
+    tagged = [label(r["local_name"]) for r in conn.execute(
+        "SELECT local_name, COUNT(*) n FROM facts WHERE COALESCE(is_nil,0)=0 AND COALESCE(has_dimension,0)=0 "
+        "AND value IS NOT NULL AND COALESCE(taxonomy_family,'') != 'direp' GROUP BY local_name ORDER BY n DESC LIMIT 6")]
+    return {"n_facts": n_facts or 0, "n_concepts": n_concepts or 0,
+            "thin": (n_facts or 0) < THIN_FACTS or (n_concepts or 0) < THIN_CONCEPTS, "tagged": tagged}
+
+
 def build_overview(conn: sqlite3.Connection, filename: str) -> dict:
     name = None
     marks = ",".join("?" * len(ENTITY_NAME_CONCEPTS))
@@ -214,6 +227,7 @@ def build_overview(conn: sqlite3.Connection, filename: str) -> dict:
         "ratios": ratios,
         "quick_asks": build_quick_asks(conn, metrics, ratios),
         "warnings": warnings,
+        "coverage": coverage(conn),
         "figures": top,
         "topics": topics,
         "suggestions": suggestions[:5],

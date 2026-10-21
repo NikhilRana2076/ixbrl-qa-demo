@@ -166,6 +166,10 @@
     }
     if (!f.metrics.length) ul.append(el("li", {}, el("span", { class: "m-label muted", text: "No standard headline concepts tagged." })));
     const w = $("#ovWarnings"); w.replaceChildren(...(f.warnings || []).map((t) => el("p", { class: "note", text: t })));
+    if (f.coverage && f.coverage.thin) {
+      const have = f.metrics.map((m) => m.label);
+      w.append(el("p", { class: "note", text: `This looks like a small company's filing: only ${f.coverage.n_facts} tagged facts. Questions about things the filing doesn't tag, such as staff, segments or detailed notes, will come back as "Not found".` + (have.length ? ` It does tag: ${have.join(", ")}.` : "") }));
+    }
     const rl = $("#ovRatios"); rl.replaceChildren();
     for (const r of f.ratios || []) {
       const pp = r.change_pp;
@@ -362,7 +366,16 @@
         el("p", { class: "concept", style: "margin-top:0", text: r.kind === "not_found" ? "Not found in the tagged data" : "Answer could not be verified" }),
         badge(st)));
       if (r.summary) body.append(el("p", { class: "summary", text: r.summary }));
-      if (r.kind === "not_found") body.append(el("p", { class: "muted small", text: "Declining to answer is intended behaviour: the system won't produce a figure the filing doesn't tag. Try naming the concept (e.g. “profit before tax”) or the period." }));
+      if (r.kind === "not_found") {
+        body.append(el("p", { class: "muted small", text: r.thin
+          ? `This filing tags only ${r.n_facts} facts, which is typical of a small company's accounts, so many questions can't be answered from it.`
+          : "Declining to answer is intended behaviour: the system won't produce a figure the filing doesn't tag. Try naming the concept (e.g. “profit before tax”) or the period." }));
+        if ((r.available || []).length) {
+          body.append(el("p", { class: "muted small", text: "What this filing does tag. Tap one to ask:" }),
+            el("div", { class: "facts-row" }, ...r.available.slice(0, 5).map((l) =>
+              el("button", { class: "chip", type: "button", text: l, onclick: () => ask(`What was ${l.toLowerCase()}?`) }))));
+        }
+      }
     }
     if (r.evidence && r.evidence.length && !window.__evidenceShown) {
       window.__evidenceShown = true;
