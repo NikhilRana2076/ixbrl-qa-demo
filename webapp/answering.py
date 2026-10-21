@@ -31,7 +31,7 @@ import re
 import sqlite3
 
 from .formatting import dimensions, format_ratio, format_value, label, period_text, taxonomy_badge
-from .overview import build_overview
+from .overview import build_overview, coverage
 
 MAX_FACTS = 20
 NARRATIVE_WINDOW = 1400
@@ -404,6 +404,7 @@ def answer_question(conn, filename: str, question: str, client, tier: str, provi
 
     if not facts and not narratives:
         return {"kind": "not_found", "summary": "", "evidence": [], "search_terms": _terms(terms),
+                **_not_found_hint(conn),
                 "status": _status("abstained", "No tagged facts or disclosures matched this question.")}
 
     prompt = PROMPT.format(company_name=filename, evidence=evidence, question=question)
@@ -411,12 +412,20 @@ def answer_question(conn, filename: str, question: str, client, tier: str, provi
                              max_tokens=provider_cfg["max_tokens"], purpose=f"web_{tier}")
     parsed = parse_json(result.get("text", ""))
     out = verify(parsed, facts, narratives, excerpts, question)
+    if out.get("kind") == "not_found":
+        out.update(_not_found_hint(conn))
     out["evidence"] = [fact_card(f) for f in facts]
     out["evidence_narratives"] = [{"narrative_id": n["narrative_id"], "label": label(n.get("local_name")),
                                    "concept": n.get("concept"), "chars": n.get("char_count")}
                                   for n in narratives]
     out["search_terms"] = _terms(terms)
     return out
+
+
+def _not_found_hint(conn) -> dict:
+    """Say how much this filing tags, so 'not found' on a thin filing does not read as 'the system is broken'."""
+    cov = coverage(conn)
+    return {"thin": cov["thin"], "n_facts": cov["n_facts"], "available": cov["tagged"]}
 
 
 def _terms(terms) -> list[str]:

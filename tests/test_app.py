@@ -136,6 +136,18 @@ def test_not_found_and_garbage(client, script):
     assert ask(client).json["kind"] == "unverified"
 
 
+def test_thin_filing_gets_coverage_note_and_helpful_not_found(client, script):
+    # The fictional fixture has only a handful of tagged facts, like a very small company's accounts.
+    j = upload(client).json
+    cov = j["filing"]["coverage"]
+    assert cov["thin"] and cov["n_facts"] < 100 and cov["tagged"]
+    script(["Goodwill"], {"answer_type": "not_found"})
+    r = ask(client, "What was goodwill?").json
+    assert r["kind"] == "not_found"
+    assert r["thin"] is True and r["n_facts"] == cov["n_facts"]
+    assert r["available"] == cov["tagged"]
+
+
 def test_summary_path(client, script):
     upload(client)
     script("SUMMARY", {})
